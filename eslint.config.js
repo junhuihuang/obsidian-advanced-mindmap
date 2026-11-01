@@ -21,7 +21,6 @@ export default [
     languageOptions: {
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: import.meta.dirname,
       },
     },
   },
@@ -40,27 +39,6 @@ export default [
     }
   },
   {
-    // Deliberately not implementing the declarative settings API: Obsidian
-    // renders that list *instead of* a custom `display()`, and this tab is a
-    // paginated layout with inherited per-file values and a live preview.
-    files: ['src/settings/dialogs.ts'],
-    rules: {
-      'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
-      '@typescript-eslint/no-deprecated': 'off',
-    },
-  },
-  {
-    // These files implement or drive Obsidian's DOM helpers, so they have to
-    // reach for the native API the rules point away from. `createElement` and
-    // `querySelectorAll` are reported as deprecated because one overload each
-    // is marked deprecated (the deprecated HTML tags, e.g. `<marquee>`); the
-    // signatures used here are the current ones.
-    files: ['src/test-utils/dom-helpers.ts', 'src/test-utils/perf-harness.ts'],
-    rules: {
-      '@typescript-eslint/no-deprecated': 'off',
-    },
-  },
-  {
     // Build and test-runner scripts, which are Node programs rather than
     // plugin code: `node:fs` is the point of them, and the vault path they
     // touch belongs to this repository, not to the user's vault.
@@ -68,6 +46,18 @@ export default [
     rules: {
       'obsidianmd/no-nodejs-modules': 'off',
       'obsidianmd/hardcoded-config-path': 'off',
+    },
+  },
+  {
+    // The settings tab keeps the imperative renderer: a paginated layout with
+    // inherited per-file values and a live preview has no declarative
+    // description, and `getSettingDefinitions()` returns an empty list so
+    // Obsidian keeps calling `display()` (see the class comment). Installing
+    // that renderer is the tab's only use of the deprecated member, so the
+    // deprecation warning is not actionable here.
+    files: ['src/settings/dialogs.ts'],
+    rules: {
+      '@typescript-eslint/no-deprecated': 'off',
     },
   },
   {

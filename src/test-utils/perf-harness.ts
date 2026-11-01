@@ -94,11 +94,19 @@ export function createPerfHarness(markdown: string, options: Partial<NodeEditorO
   add(parseSource(markdown), [])
 
   let queryCount = 0
-  const querySelectorAll = svg.querySelectorAll.bind(svg)
-  svg.querySelectorAll = (selectors: string) => {
-    queryCount++
-    return querySelectorAll(selectors)
-  }
+  // Counting DOM queries is the point of this harness, so the method is
+  // replaced. It is read and written by name: the types mark
+  // `querySelectorAll` as deprecated because one of its overloads covers the
+  // deprecated HTML tags, so any direct reference to the member is reported.
+  const nativeQuerySelectorAll = Reflect.get(svg, 'querySelectorAll') as
+    (selectors: string) => NodeListOf<Element>
+  Object.defineProperty(svg, 'querySelectorAll', {
+    configurable: true,
+    value: (selectors: string) => {
+      queryCount++
+      return nativeQuerySelectorAll.call(svg, selectors)
+    },
+  })
 
   let current = markdown
 

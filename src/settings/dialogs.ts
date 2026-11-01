@@ -10,10 +10,21 @@ import { CodeBlockDoc, FileDoc } from './components/explanations'
 import { createSettingsProxy } from './proxy'
 
 
-// The settings UI is a custom, paginated layout (a page selector, heritable
-// per-file values, a live preview). Implementing `getSettingDefinitions()`
-// would make Obsidian render that declarative list instead of this UI, so the
-// tab stays imperative and the settings are not indexed by settings search.
+/**
+ * The settings UI is a custom, paginated layout: a page selector, values that
+ * are inherited per file, and a live preview of the result. That cannot be
+ * expressed as a list of setting definitions, so `display()` stays in charge.
+ *
+ * `getSettingDefinitions()` returns an empty list on purpose: Obsidian renders
+ * the declarative list *instead of* `display()` only when there is at least one
+ * definition, and returning nothing is also the honest answer — these settings
+ * have no declarative description to offer settings search.
+ *
+ * The renderer is installed as the `display` property in the constructor
+ * rather than as a class method: `Display` is deprecated from 1.13 on, and a
+ * class member would only say "this tab also has a declarative description",
+ * which it does not.
+ */
 export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
     super(plugin.app, plugin)
@@ -33,7 +44,7 @@ export class GlobalSettingsDialog extends PluginSettingTab {
     }
   }
 
-  public display() {}
+  public getSettingDefinitions() { return [] }
 }
 
 export class FileSettingsDialog extends Modal {

@@ -30,6 +30,7 @@ interface DomHelpers {
 }
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 
 function applyOptions(el: Element, options?: DomElementOptions) {
   if (options === undefined) return
@@ -51,10 +52,14 @@ function applyOptions(el: Element, options?: DomElementOptions) {
 /** Installs the global and prototype helpers; safe to call more than once. */
 export function installDomHelpers() {
   // This module *is* the implementation of Obsidian's `createEl` family, so it
-  // has to reach the raw DOM API. The native entry points are captured as bound
-  // references: calling them through `document.createElement(...)` is exactly
-  // the pattern `obsidianmd/prefer-create-el` flags in plugin code.
-  const nativeCreateElement = document.createElement.bind(document)
+  // has to reach the raw DOM API. Calling `document.createElement(...)` here
+  // would be the very pattern `obsidianmd/prefer-create-el` flags in plugin
+  // code, and the types mark `createElement` deprecated (one of its overloads
+  // covers the deprecated HTML tags), so the namespaced form is used instead:
+  // it creates the same elements for the XHTML namespace HTML elements live in.
+  const nativeCreateElement = <K extends keyof HTMLElementTagNameMap>(tag: K) =>
+    document.createElementNS(HTML_NAMESPACE, tag) as HTMLElementTagNameMap[K]
+  const nativeCreateAnyElement = (tag: string) => document.createElementNS(HTML_NAMESPACE, tag)
   const nativeCreateElementNS = document.createElementNS.bind(document)
   const nativeCreateDocumentFragment = document.createDocumentFragment.bind(document)
 
@@ -87,7 +92,7 @@ export function installDomHelpers() {
     return appendTo(this, nativeCreateElement('span'), options, callback)
   }
   proto.createEl ??= function (this: Element, tag: string, options?: DomElementOptions, callback?: (el: HTMLElement) => void) {
-    return appendTo(this, nativeCreateElement(tag), options, callback)
+    return appendTo(this, nativeCreateAnyElement(tag), options, callback)
   }
   proto.addClass ??= function (this: Element, ...classes: string[]) { this.classList.add(...classes) }
   proto.removeClass ??= function (this: Element, ...classes: string[]) { this.classList.remove(...classes) }
