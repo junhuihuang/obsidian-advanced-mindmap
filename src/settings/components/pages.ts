@@ -6,6 +6,19 @@ import { strings } from 'src/translation'
 
 
 
+/**
+ * Shows or hides a settings row.
+ *
+ * The inline `display` does the hiding: `hidden` alone loses to
+ * `.setting-item { display: flex }` unless that stylesheet rule is
+ * `!important`, which the plugin review rejects.
+ */
+const setRowVisible = (node: Node, visible: boolean) => {
+  if (!node.instanceOf(HTMLElement)) return
+  node.hidden = !visible
+  node.style.display = visible ? '' : 'none'
+}
+
 /** A settings component that can refresh itself (the heritable color controls). */
 const isUpdatable = (component: unknown): component is { update: () => void } =>
   typeof (component as { update?: unknown }).update === 'function'
@@ -118,9 +131,9 @@ const SectionColoringGlobal = () => {
   const all = [ ...branch, ...depth, ...single ]
 
   function setApproach(coloring: Coloring) {
-    all.forEach(x => x.node.hidden = true)
+    all.forEach(x => setRowVisible(x.node, false))
     for (const component of { branch, depth, single }[coloring]) {
-      component.node.hidden = false
+      setRowVisible(component.node, true)
       if (isUpdatable(component))
         component.update()
     }
@@ -156,9 +169,9 @@ const SectionColoringHeritable = (inherit: GlobalSettings, partial: Partial<Glob
   const all = [ ...branch, ...depth, ...single ]
 
   function setApproach(coloring: Coloring) {
-    all.forEach(x => x.node.hidden = true)
+    all.forEach(x => setRowVisible(x.node, false))
     for (const x of { branch, depth, single }[coloring]) {
-      x.node.hidden = false
+      setRowVisible(x.node, true)
       if (isUpdatable(x)) x.update()
     }
   }

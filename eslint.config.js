@@ -44,7 +44,10 @@ export default [
       'obsidianmd/prefer-create-el': 'warn',
       'obsidianmd/prefer-window-timers': 'warn',
       'obsidianmd/no-global-this': 'warn',
-      'obsidianmd/settings-tab/prefer-setting-definitions': 'warn',
+      // Deliberately not implementing the declarative settings API: Obsidian
+      // renders that list *instead of* a custom `display()`, and this tab is a
+      // paginated layout with inherited per-file values and a live preview.
+      'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
       'no-useless-escape': 'warn',
       'no-var': 'warn',
       'no-unused-expressions': 'warn',

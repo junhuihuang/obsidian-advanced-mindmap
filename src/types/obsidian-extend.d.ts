@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-function-type -- ambient declarations that mirror the Obsidian API, which itself uses `any` */
-
 import 'obsidian'
 import { App } from 'obsidian'
 
@@ -53,28 +51,28 @@ declare module 'obsidian' {
     unregisterExtension(ext: string): void;
   }
   interface EmbedComponent extends Component {
-    loadFile(): any;
+    loadFile(): unknown;
   }
 
   export class CustomCss extends Component {
     // Properties
     app: App
     boundRaw()
-    csscache: Map<any, any>
-    enabledSnippets: Set<any>
+    csscache: Map<unknown, unknown>
+    enabledSnippets: Set<unknown>
     extraStyleEls: HTMLStyleElement[]
     oldThemes: Theme[]
-    queue: any
+    queue: unknown
     requestLoadSnippets()
     requestLoadTheme()
     requestReadThemes()
-    snippets: any[]
+    snippets: unknown[]
     styleEl: HTMLStyleElement
     theme: string
     themes: Record<string, Theme>
-    updates: any
-    _children: any[]
-    _events: Function[]
+    updates: unknown
+    _children: unknown[]
+    _events: CallableFunction[]
     _loaded: boolean
 
     // Methods
@@ -121,43 +119,42 @@ declare module 'obsidian' {
   }
 
   export interface App {
-    account: any
+    account: unknown
     appId: string
-    appMenuBarManager: any
-    commands: any
+    appMenuBarManager: unknown
+    commands: unknown
     customCss: CustomCss
-    dom: any
-    dragManager: any
-    embedRegistry: any
+    dom: unknown
+    dragManager: unknown
+    embedRegistry: unknown
     fileManager: FileManager
-    foldManager: any
-    hotkeyManager: any
-    internalPlugins: any
+    foldManager: unknown
+    hotkeyManager: unknown
+    internalPlugins: unknown
     isMobile: boolean
     keymap: Keymap
     /**
      * The last known user interaction event, to help commands find out what modifier keys are pressed.
      */
     lastEvent: UserEvent | null
-    loadProgress: any
+    loadProgress: unknown
     metadataCache: MetadataCache
-    mobileNavbar: any
-    mobileToolbar: any
-    nextFrameEvents: any
-    nextFrameTimer: any
-    plugins: any
+    mobileNavbar: unknown
+    mobileToolbar: unknown
+    nextFrameEvents: unknown
+    nextFrameTimer: unknown
+    plugins: unknown
     scope: Scope
-    setting: any
-    shareReceiver: any
-    statusBar: any
+    setting: unknown
+    shareReceiver: unknown
+    statusBar: unknown
     title: string
     vault: Vault
-    viewRegistry: any
+    viewRegistry: unknown
     workspace: Workspace
 
     
     // Methods:
-    constructor(e,t)
 
     adaptToSystemTheme()
     changeTheme(e)
@@ -274,16 +271,16 @@ declare module 'obsidian' {
      * or push it to a queue to be called later when layout is ready.
      * @public
      * */
-    onLayoutReady(callback: () => any): void
+    onLayoutReady(callback: () => unknown): void
     /**
      * @public
      */
-    changeLayout(workspace: any): Promise<void>
+    changeLayout(workspace: unknown): Promise<void>
 
     /**
      * @public
      */
-    getLayout(): any
+    getLayout(): unknown
 
     /**
      * @public
@@ -417,12 +414,12 @@ declare module 'obsidian' {
      * Iterate through all leaves in the main area of the workspace.
      * @public
      */
-    iterateRootLeaves(callback: (leaf: WorkspaceLeaf) => any): void
+    iterateRootLeaves(callback: (leaf: WorkspaceLeaf) => unknown): void
     /**
      * Iterate through all leaves, including main area leaves, floating leaves, and sidebar leaves.
      * @public
      */
-    iterateAllLeaves(callback: (leaf: WorkspaceLeaf) => any): void
+    iterateAllLeaves(callback: (leaf: WorkspaceLeaf) => unknown): void
     /**
      * @public
      */
@@ -450,98 +447,97 @@ declare module 'obsidian' {
     /**
      * @public
      */
-    iterateCodeMirrors(callback: (cm: CodeMirror.Editor) => any): void
+    iterateCodeMirrors(callback: (cm: CodeMirror.Editor) => unknown): void
 
     /**
      * @public
      */
-    on(name: 'quick-preview', callback: (file: TFile, data: string) => any, ctx?: any): EventRef
+    on(name: 'quick-preview', callback: (file: TFile, data: string) => unknown, ctx?: unknown): EventRef
     /**
      * @public
      */
-    on(name: 'resize', callback: () => any, ctx?: any): EventRef
+    on(name: 'resize', callback: () => unknown, ctx?: unknown): EventRef
     /**
      * @public
      */
-    on(name: 'click', callback: (evt: MouseEvent) => any, ctx?: any): EventRef
+    on(name: 'click', callback: (evt: MouseEvent) => unknown, ctx?: unknown): EventRef
     /**
      * @public
      */
-    on(name: 'active-leaf-change', callback: (leaf: WorkspaceLeaf | null) => any, ctx?: any): EventRef
+    on(name: 'active-leaf-change', callback: (leaf: WorkspaceLeaf | null) => unknown, ctx?: unknown): EventRef
 
     /* file is null when an empty tab is opened. */
-    on(name: 'file-open', callback: (file: TFile | null) => any, ctx?: any): EventRef
+    on(name: 'file-open', callback: (file: TFile | null) => unknown, ctx?: unknown): EventRef
 
     /**
      * @public
      */
-    on(name: 'layout-change', callback: () => any, ctx?: any): EventRef
+    on(name: 'layout-change', callback: () => unknown, ctx?: unknown): EventRef
     /**
      * @public
      */
-    on(name: 'window-open', callback: (win: WorkspaceWindow, window: Window) => any, ctx?: any): EventRef
+    on(name: 'window-open', callback: (win: WorkspaceWindow, window: Window) => unknown, ctx?: unknown): EventRef
     /**
      * @public
      */
-    on(name: 'window-close', callback: (win: WorkspaceWindow, window: Window) => any, ctx?: any): EventRef
+    on(name: 'window-close', callback: (win: WorkspaceWindow, window: Window) => unknown, ctx?: unknown): EventRef
     /**
      * Triggered when the CSS of the app has changed.
      * @public
      */
-    on(name: 'css-change', callback: () => any, ctx?: any): EventRef
+    on(name: 'css-change', callback: () => unknown, ctx?: unknown): EventRef
     /**
      * Triggered when the user opens the context menu on a file.
      * @public
      */
-    on(name: 'file-menu', callback: (menu: Menu, file: TAbstractFile, source: string, leaf?: WorkspaceLeaf) => any, ctx?: any): EventRef
+    on(name: 'file-menu', callback: (menu: Menu, file: TAbstractFile, source: string, leaf?: WorkspaceLeaf) => unknown, ctx?: unknown): EventRef
 
     /**
      * Triggered when the user opens the context menu on an editor.
      * @public
      */
-    on(name: 'editor-menu', callback: (menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo) => any, ctx?: any): EventRef
+    on(name: 'editor-menu', callback: (menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo) => unknown, ctx?: unknown): EventRef
     /**
      * Triggered when changes to an editor has been applied, either programmatically or from a user event.
      * @public
      */
-    on(name: 'editor-change', callback: (editor: Editor, info: MarkdownView | MarkdownFileInfo) => any, ctx?: any): EventRef
+    on(name: 'editor-change', callback: (editor: Editor, info: MarkdownView | MarkdownFileInfo) => unknown, ctx?: unknown): EventRef
     /**
      * Triggered when the editor receives a paste event.
      * Check for `evt.defaultPrevented` before attempting to handle this event, and return if it has been already handled.
      * Use `evt.preventDefault()` to indicate that you've handled the event.
      * @public
      */
-    on(name: 'editor-paste', callback: (evt: ClipboardEvent, editor: Editor, info: MarkdownView | MarkdownFileInfo) => any, ctx?: any): EventRef
+    on(name: 'editor-paste', callback: (evt: ClipboardEvent, editor: Editor, info: MarkdownView | MarkdownFileInfo) => unknown, ctx?: unknown): EventRef
     /**
      * Triggered when the editor receives a drop event.
      * Check for `evt.defaultPrevented` before attempting to handle this event, and return if it has been already handled.
      * Use `evt.preventDefault()` to indicate that you've handled the event.
      * @public
      */
-    on(name: 'editor-drop', callback: (evt: DragEvent, editor: Editor, info: MarkdownView | MarkdownFileInfo) => any, ctx?: any): EventRef
+    on(name: 'editor-drop', callback: (evt: DragEvent, editor: Editor, info: MarkdownView | MarkdownFileInfo) => unknown, ctx?: unknown): EventRef
 
     /**
      * @public
      */
-    on(name: 'codemirror', callback: (cm: CodeMirror.Editor) => any, ctx?: any): EventRef
+    on(name: 'codemirror', callback: (cm: CodeMirror.Editor) => unknown, ctx?: unknown): EventRef
 
     /**
      * Triggered when the app is about to quit. Not guaranteed to actually run.
      * Perform some best effort cleanup here.
      * @public
      */
-    on(name: 'quit', callback: (tasks: Tasks) => any, ctx?: any): EventRef
+    on(name: 'quit', callback: (tasks: Tasks) => unknown, ctx?: unknown): EventRef
 
   }
 
   export interface WorkspaceItem extends Events {
     containerEl: HTMLElement
-    dimension?: any
+    dimension?: unknown
     id: string
     parent?: WorkspaceParent
     type: WorkspaceParent['type'] | 'leaf'
 
-    constructor(t,n)
     detach()
     /**
      * Get the root container parent item, which can be one of:
@@ -564,12 +560,11 @@ declare module 'obsidian' {
     type: 'split' | 'tabs' | 'floating' | 'mobile-drawer'
     children: WorkspaceItem[]
 
-    constructor(a: any, b: any)
-    insertChild(index: number, child: WorkspaceItem): any
-    recomputeChildrenDimensions(): any
-    removeChild(a: any): any
-    replaceChild(a: any, b: any): any
-    serialize(): any
+    insertChild(index: number, child: WorkspaceItem): unknown
+    recomputeChildrenDimensions(): unknown
+    removeChild(a: unknown): unknown
+    replaceChild(a: unknown, b: unknown): unknown
+    serialize(): unknown
   }
   
 
@@ -577,9 +572,9 @@ declare module 'obsidian' {
     component: Component
     direction: SplitDirection
     isResizing: boolean
-    originalSizes?: any[]
+    originalSizes?: unknown[]
     resizeHandleEl: HTMLElement
-    resizeStartPos?: any
+    resizeStartPos?: unknown
     type: 'split'
     win: Window
     workspace: Workspace
@@ -597,30 +592,29 @@ declare module 'obsidian' {
     tabsContainerEl: HTMLElement
     tabsInnerEl: HTMLElement
 
-    constructor(a: any, b: any)
-    getTabInsertLocation(a: any): any
-    insertChild(index: number, child: WorkspaceLeaf): any
-    lockTabWidths(): any
-    onContainerScroll(): any
-    recomputeChildrenDimensions(): any
-    removeChild(a: any): any
-    scrollIntoView(a: any): any
-    selectTab(a: any): any
-    selectTabIndex(a: any): any
-    serialize(): any
-    setStacked(a: any): any
-    unlockTabWidths(): any
-    updateSlidingTabs(): any
-    updateTabDisplay(): any
+    getTabInsertLocation(a: unknown): unknown
+    insertChild(index: number, child: WorkspaceLeaf): unknown
+    lockTabWidths(): unknown
+    onContainerScroll(): unknown
+    recomputeChildrenDimensions(): unknown
+    removeChild(a: unknown): unknown
+    scrollIntoView(a: unknown): unknown
+    selectTab(a: unknown): unknown
+    selectTabIndex(a: unknown): unknown
+    serialize(): unknown
+    setStacked(a: unknown): unknown
+    unlockTabWidths(): unknown
+    updateSlidingTabs(): unknown
+    updateTabDisplay(): unknown
   }
 
   export interface WorkspaceLeaf extends WorkspaceItem {
     activeTime: number
     app: App
     component: BaseComponent
-    group?: any
+    group?: unknown
     height: number
-    history: any
+    history: unknown
     pinned: boolean
     resizeHandleEl: HTMLElement
     resizeObserver: ResizeObserver
@@ -637,16 +631,14 @@ declare module 'obsidian' {
     working: boolean
     workspace: Workspace
     _: {
-        'group-change': any[];
-        'history-change': any[];
-        'pinned-change': any[];
+        'group-change': unknown[];
+        'history-change': unknown[];
+        'pinned-change': unknown[];
     }
-    _empty: any
+    _empty: unknown
 
-    constructor(app: App)
 
     canNavigate(): boolean
-    constructor(t,n)
     detach(): void
     getDisplayText(): string
     getEphemeralState()
@@ -667,11 +659,11 @@ declare module 'obsidian' {
     rebuildView()
     recordHistory(e)
     serialize()
-    setEphemeralState(state: any): void
+    setEphemeralState(state: unknown): void
     setGroup(group: string): void
     setGroupMember(other: WorkspaceLeaf): void
     setPinned(pinned: boolean): void
-    setViewState(viewState: ViewState, eState?: any): Promise<void>
+    setViewState(viewState: ViewState, eState?: unknown): Promise<void>
     togglePinned(): void
     trigger(t)
     unhighlight()
@@ -680,8 +672,8 @@ declare module 'obsidian' {
      */
     updateHeader(): void
 
-    on(name: 'pinned-change', callback: (pinned: boolean) => any, ctx?: any): EventRef
-    on(name: 'group-change', callback: (group: string) => any, ctx?: any): EventRef
+    on(name: 'pinned-change', callback: (pinned: boolean) => unknown, ctx?: unknown): EventRef
+    on(name: 'group-change', callback: (group: string) => unknown, ctx?: unknown): EventRef
   }
 
   export type Recycler = (a: unknown, b: unknown) => void
@@ -753,7 +745,6 @@ declare module 'obsidian' {
     /**
      * @public
      */
-    constructor(containerEl: HTMLElement)
     /**
      * @public
      */
@@ -783,6 +774,6 @@ declare module 'obsidian' {
     /**
      * @public
      */
-    onChange(callback: (value: string) => any): this
+    onChange(callback: (value: string) => unknown): this
   }
 }

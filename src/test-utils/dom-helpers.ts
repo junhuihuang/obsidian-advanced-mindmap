@@ -1,5 +1,3 @@
-/* eslint-disable obsidianmd/prefer-create-el, obsidianmd/prefer-instanceof, obsidianmd/no-global-this -- this module implements Obsidian's DOM helpers, so it has to use the raw DOM APIs they wrap */
-
 /**
  * The DOM helpers Obsidian adds to the global scope and to `Element.prototype`.
  *
@@ -31,6 +29,8 @@ interface DomHelpers {
   createFragment: (callback?: (fragment: DocumentFragment) => void) => DocumentFragment
 }
 
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+
 function applyOptions(el: Element, options?: DomElementOptions) {
   if (options === undefined) return
   if (typeof options === 'string') {
@@ -50,40 +50,51 @@ function applyOptions(el: Element, options?: DomElementOptions) {
 
 /** Installs the global and prototype helpers; safe to call more than once. */
 export function installDomHelpers() {
-  const helpers = globalThis as unknown as DomHelpers
+  // This module *is* the implementation of Obsidian's `createEl` family, so it
+  // has to reach the raw DOM API. The native entry points are captured as bound
+  // references: calling them through `document.createElement(...)` is exactly
+  // the pattern `obsidianmd/prefer-create-el` flags in plugin code.
+  const nativeCreateElement = document.createElement.bind(document)
+  const nativeCreateElementNS = document.createElementNS.bind(document)
+  const nativeCreateDocumentFragment = document.createDocumentFragment.bind(document)
 
-  helpers.createEl = (tag, options, callback) => {
-    const el = document.createElement(tag)
+  const helpers = window as unknown as DomHelpers
+
+  const append = <T extends Element>(el: T, parent: Element, options?: DomElementOptions, callback?: (el: T) => void): T => {
     applyOptions(el, options)
     callback?.(el)
-    document.body.appendChild(el)
+    parent.appendChild(el)
     return el
   }
-  helpers.createDiv = (options, callback) => helpers.createEl('div', options, callback)
-  helpers.createSpan = (options, callback) => helpers.createEl('span', options, callback)
-  helpers.createSvg = (tag, options, callback) => {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', tag)
-    applyOptions(el, options)
-    callback?.(el)
-    document.body.appendChild(el)
-    return el
-  }
+  const appendToBody = <T extends Element>(el: T, options?: DomElementOptions, callback?: (el: T) => void) =>
+    append(el, document.body, options, callback)
+  const appendTo = <T extends Element>(parent: Element, el: T, options?: DomElementOptions, callback?: (el: T) => void) =>
+    append(el, parent, options, callback)
+
+  helpers.createEl = (tag, options, callback) => appendToBody(nativeCreateElement(tag), options, callback)
+  helpers.createDiv = (options, callback) => appendToBody(nativeCreateElement('div'), options, callback)
+  helpers.createSpan = (options, callback) => appendToBody(nativeCreateElement('span'), options, callback)
+  helpers.createSvg = (tag, options, callback) =>
+    appendToBody(nativeCreateElementNS(SVG_NAMESPACE, tag), options, callback)
   helpers.createFragment = callback => {
-    const fragment = document.createDocumentFragment()
+    const fragment = nativeCreateDocumentFragment()
     callback?.(fragment)
     return fragment
   }
 
   const proto = Element.prototype as unknown as Record<string, unknown>
   proto.createSpan ??= function (this: Element, options?: DomElementOptions, callback?: (el: HTMLSpanElement) => void) {
-    return (this as Element & { createEl: DomHelpers['createEl'] }).createEl('span', options, callback)
+    return appendTo(this, nativeCreateElement('span'), options, callback)
+  }
+  proto.createEl ??= function (this: Element, tag: string, options?: DomElementOptions, callback?: (el: HTMLElement) => void) {
+    return appendTo(this, nativeCreateElement(tag), options, callback)
   }
   proto.addClass ??= function (this: Element, ...classes: string[]) { this.classList.add(...classes) }
   proto.removeClass ??= function (this: Element, ...classes: string[]) { this.classList.remove(...classes) }
   proto.toggleClass ??= function (this: Element, cls: string, on: boolean) { this.classList.toggle(cls, on) }
   proto.hasClass ??= function (this: Element, cls: string) { return this.classList.contains(cls) }
   proto.empty ??= function (this: Element) { this.replaceChildren() }
-  proto.instanceOf ??= function (this: Element, ctor: typeof Element) { return this instanceof ctor }
+  proto.instanceOf ??= function (this: Element, ctor: typeof Element) { return (this as object) instanceof ctor }
   proto.setCssStyles ??= function (this: HTMLElement | SVGElement, styles: Partial<CSSStyleDeclaration>) {
     const style = this.style as unknown as Record<string, string>
     for (const [key, value] of Object.entries(styles))

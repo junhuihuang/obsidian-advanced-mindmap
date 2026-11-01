@@ -1,6 +1,5 @@
 import { ButtonComponent, Editor, EditorPosition } from 'obsidian'
 import autoBind from 'auto-bind'
-import GrayMatter from 'gray-matter'
 
 import { CodeBlockSettings, FileSettings, globalSettings, GlobalSettings } from 'src/settings/filesystem'
 import { cssClasses } from 'src/constants'
@@ -18,6 +17,7 @@ import { parseSource } from 'src/editing/source-tree'
 import { removeChildlessCircles } from 'src/rendering/node-circles'
 import { applyNodeWidths } from 'src/rendering/node-widths'
 import { nodeWidthsFor, saveNodeWidth } from 'src/settings/filesystem'
+import { parseFrontmatter, stringifyFrontmatter } from 'src/utilities/frontmatter'
 import { createTreeUpdater } from './tree-updater'
 import { latestRenderQueue } from './render-queue'
 
@@ -34,7 +34,7 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
 
   const fileText = editor.getValue()
   const { settings: fileSettings } = splitMarkdown('file', fileText)
-  const { settings: codeBlockSettings, body } = splitMarkdown('codeBlock', codeBlock.markdown)
+  const { settings: codeBlockSettings } = splitMarkdown('codeBlock', codeBlock.markdown)
   const settings = new SettingsManager(codeBlock, fileSettings, codeBlockSettings)
 
   let currentMarkdown = codeBlock.markdown
@@ -47,7 +47,7 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
   SizeManager(containerEl, svg, settings)
 
   if (markdownView.getMode() === 'source') {
-    SettingsDialog(codeBlock, body, codeBlockSettings, fileSettings, editor)
+    SettingsDialog(codeBlock, codeBlockSettings, fileSettings, editor)
     editorHandle = createMindmapEditor(markmap, {
       svg,
       getMarkdown: () => currentMarkdown,
@@ -65,6 +65,7 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
     renderQueue.destroy()
     editorHandle?.destroy()
     markmap.destroy()
+    containerEl.parentElement?.classList.remove(cssClasses.markmapEmbed)
   })
 
   render().then(() =>
@@ -92,7 +93,11 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
       if (!destroyed) removeChildlessCircles(svg)
     })
 
+    // The block that holds this mindmap is marked so the stylesheet can target
+    // it directly. Matching on "contains a mindmap" from CSS instead would
+    // invalidate every embed in the editor on any DOM change.
     const { classList } = containerEl.parentElement!
+    classList.add(cssClasses.markmapEmbed)
     if (settings.merged.highlight) classList.add(cssClasses.highlight)
     else classList.remove(cssClasses.highlight)
 
@@ -178,17 +183,14 @@ class SettingsManager {
     const lineStart = EditorLine(sectionInfo.lineStart + 1)
     const lineEnd   = EditorLine(sectionInfo.lineEnd)
 
-    const text = editor.getRange(lineStart, lineEnd)
+    const { data, content } = parseFrontmatter(editor.getRange(lineStart, lineEnd))
 
-    const gm = GrayMatter(text)
-    gm.data.markmap ??= {}
-    update(gm.data.markmap)
-    if (isObjectEmpty(gm.data.markmap)) delete gm.data.markmap
+    if (typeof data.markmap !== 'object' || data.markmap === null) data.markmap = {}
+    const markmap = data.markmap as CodeBlockSettings
+    update(markmap)
+    if (isObjectEmpty(markmap)) delete data.markmap
 
-    editor.replaceRange(
-      GrayMatter.stringify(gm.content, gm.data),
-      lineStart, lineEnd
-    )
+    editor.replaceRange(stringifyFrontmatter(content, data), lineStart, lineEnd)
   }
 }
 
@@ -211,7 +213,7 @@ function SizeManager(containerEl: CodeBlock['containerEl'], svg: SVGSVGElement, 
   Callbag.subscribe(fromEvent(document, 'mouseup'), settings.saveHeight)
 }
 
-function SettingsDialog(codeBlock: CodeBlock, body: string, codeBlockSettings: CodeBlockSettings, fileSettings: FileSettings, editor: Editor) {
+function SettingsDialog(codeBlock: CodeBlock, codeBlockSettings: CodeBlockSettings, fileSettings: FileSettings, editor: Editor) {
   const fileSettingsProxy = new Proxy({} as FileSettings, {
     get: (_, key: keyof FileSettings) => fileSettings[key],
     has: (_, key) => key in fileSettings,
@@ -228,8 +230,12 @@ function SettingsDialog(codeBlock: CodeBlock, body: string, codeBlockSettings: C
   })
 
   function updateFileFrontmatter() {
-    const frontmatter = isObjectEmpty(fileSettings) ? {} : { markmap: fileSettings }
-    editor.setValue(GrayMatter.stringify(body, frontmatter))
+    // Read the note itself: the code block only knows its own body, and the
+    // file-level settings belong to the note's own frontmatter.
+    const { data, content } = parseFrontmatter(editor.getValue())
+    if (isObjectEmpty(fileSettings)) delete data.markmap
+    else data.markmap = { ...fileSettings }
+    editor.setValue(stringifyFrontmatter(content, data))
   }
 
   const codeBlockProxy = new Proxy(codeBlockSettings, {
@@ -251,15 +257,11 @@ function SettingsDialog(codeBlock: CodeBlock, body: string, codeBlockSettings: C
     const lineStart = EditorLine(sectionInfo.lineStart + 1)
     const lineEnd   = EditorLine(sectionInfo.lineEnd)
 
-    const text = editor.getRange(lineStart, lineEnd)
+    const { data, content } = parseFrontmatter(editor.getRange(lineStart, lineEnd))
+    if (isObjectEmpty(codeBlockSettings)) delete data.markmap
+    else data.markmap = { ...codeBlockSettings }
 
-    const bodyText = GrayMatter(text).content
-    const frontmatter = isObjectEmpty(codeBlockSettings) ? {} : { markmap: codeBlockSettings }
-
-    editor.replaceRange(
-      GrayMatter.stringify(bodyText, frontmatter),
-      lineStart, lineEnd
-    )
+    editor.replaceRange(stringifyFrontmatter(content, data), lineStart, lineEnd)
   }
 
   const button = new ButtonComponent(codeBlock.containerEl.parentElement!)

@@ -10,10 +10,10 @@ import { CodeBlockDoc, FileDoc } from './components/explanations'
 import { createSettingsProxy } from './proxy'
 
 
-// The settings UI is a custom, paginated layout (page selector, heritable
-// per-file values, live preview). It cannot be expressed with the declarative
-// API, so `display()` stays.
-// eslint-disable-next-line obsidianmd/settings-tab/prefer-setting-definitions
+// The settings UI is a custom, paginated layout (a page selector, heritable
+// per-file values, a live preview). Implementing `getSettingDefinitions()`
+// would make Obsidian render that declarative list instead of this UI, so the
+// tab stays imperative and the settings are not indexed by settings search.
 export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
     super(plugin.app, plugin)

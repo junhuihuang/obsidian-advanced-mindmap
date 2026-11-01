@@ -5,10 +5,6 @@
     --mm-color-text: #fff;
 }
 
-[hidden] {
-    display: none !important;
-}
-
 .advmm-coloring-approach-description {
     border-top: none;
     padding-top: 0;
@@ -69,7 +65,7 @@
     padding: 3px;
 }
 
-.markdown-source-view.mod-cm6 .cm-embed-block:has(.block-language-markmap):hover {
+.markdown-source-view.mod-cm6 .cm-embed-block.advmm-markmap-embed:hover {
     box-shadow: none;
     cursor: auto;
 }
@@ -283,16 +279,19 @@
   50% { opacity: 0.55; }
 }
 
+/* `cursor` is inherited, but links and buttons inside a node set their own, so
+   the descendant selector repeats the container class to out-specify them
+   rather than forcing the declaration. */
 .advmm-editor-container.advmm-dragging,
-.advmm-editor-container.advmm-dragging * {
-  cursor: grabbing !important;
+.advmm-editor-container.advmm-dragging.advmm-dragging * {
+  cursor: grabbing;
 }
 
 /* Resizing a node from its right edge: keep the resize cursor and never start
    selecting text while the pointer moves. */
 .advmm-editor-container.advmm-resizing,
-.advmm-editor-container.advmm-resizing * {
-  cursor: ew-resize !important;
+.advmm-editor-container.advmm-resizing.advmm-resizing * {
+  cursor: ew-resize;
   user-select: none;
 }
 

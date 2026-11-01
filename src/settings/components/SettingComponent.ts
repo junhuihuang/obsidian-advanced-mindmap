@@ -1,11 +1,18 @@
-import { ValueComponent, ExtraButtonComponent, DropdownComponent, TextComponent, Setting } from 'obsidian'
+import { ExtraButtonComponent, DropdownComponent, TextComponent, Setting } from 'obsidian'
 import { globalSettings, GlobalSettings } from 'src/settings/filesystem'
 import { Resolve } from 'src/utilities/utilities'
 
 
-interface ControlComponent<T> extends ValueComponent<T> {
-  onChange(callback: (value: T) => unknown): this
+interface ControlComponent<T> {
+  getValue(): T
+  setValue(value: T): unknown
+  onChange(callback: (value: T) => unknown): unknown
 }
+
+/** Every value a settings control can hold. */
+type ControlValue = string | number | boolean
+
+type Control = ControlComponent<ControlValue>
 
 export const dropdown = (...options: [string, string][]) => ({ tag: 'dropdown' as const, options })
 type dropdown = ReturnType<typeof dropdown>
@@ -31,10 +38,9 @@ export const SettingComponent = (options: SettingOptions) => {
 
     const controlType = typeof options.control === 'string' ? options.control : options.control.tag
     // The controls (text, number, toggle, color, dropdown) share no common
-    // value type, so this one has to be untyped; `setValue`/`onChange` are
+    // value type, so this one holds the union; `setValue`/`onChange` are
     // narrowed again per control below.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let control = Resolve<ControlComponent<any>>(resolve => ({
+    let control = Resolve<Control>(resolve => ({
       text: () => setting.addText(resolve),
       numberText: () => setting.addText(resolve),
       colorPicker: () => setting.addColorPicker(resolve),
@@ -46,25 +52,28 @@ export const SettingComponent = (options: SettingOptions) => {
       const oldControl = control
       const newControl: ControlComponent<number> = Object.create(control)
       newControl.onChange = (listener: (n: number) => unknown) => {
-        oldControl.onChange((str: string) => listener(Number.parseInt(str)))
+        oldControl.onChange(value => listener(Number.parseInt(String(value))))
         return newControl
       }
       newControl.setValue = (value: number) => { oldControl.setValue(value.toString()); return newControl }
       control = newControl
     }
 
-    type Listener<T extends string | number | boolean = string | number | boolean> = (value: T) => void
+    type Listener<T extends ControlValue = ControlValue> = (value: T) => void
     // Listeners register with their own value type; the proxy below forwards
-    // whatever the control reports, so this slot stays untyped.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let changeListener: Listener<any>
+    // whatever the control reports, so the slot itself is typed as the union.
+    let changeListener: Listener<ControlValue> | undefined
     const originalOnChange = control.onChange.bind(control)
     control.onChange = cb =>
       originalOnChange(value => {
         changeListener?.(value)
         cb(value)
       })
-    function onChange<T extends string | number | boolean>(listener: Listener<T>) { changeListener = listener }
+    // Registering narrows the listener to one control's value type, but the
+    // control itself reports the union when it fires; the cast bridges the two.
+    function onChange<T extends ControlValue>(listener: Listener<T>) {
+      changeListener = listener as Listener<ControlValue>
+    }
     const fireChangeEvent = () => changeListener?.(control.getValue())
 
     const result = { node: setting.settingEl, control, key: options.key, onChange, fireChangeEvent }

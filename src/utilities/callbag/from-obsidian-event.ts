@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- these generics mirror Obsidian's untyped, overloaded event signatures; callbacks are typed at each call site */
-
 import type { Events } from 'obsidian'
 import Callbag, { map } from '.'
 import { plugin } from 'src/core/main'
@@ -18,7 +16,10 @@ export function fromObsidianEvent<
 
   const stream = Callbag.create<CallbackParams>((next, error, complete) => {
     const sendArgsArray = (...args: CallbackParams) => next(args)
-    const ref = target.on(name, sendArgsArray as any)
+    // `Events.on` is overloaded per event name; the callback type above was
+    // already selected by the name, so this is the one signature to call.
+    const on = target.on as unknown as OnSignature
+    const ref = on.call(target, name, sendArgsArray as (...args: unknown[]) => void)
     plugin.registerEvent(ref)
     plugin.register(complete)
   })
@@ -31,9 +32,12 @@ export function fromObsidianEvent<
   })
 }
 
+/** The shape every overload of `Events.on` shares. */
+type OnSignature = (name: string, callback: (...args: unknown[]) => void, ctx?: unknown) => ReturnType<Events['on']>
+
 type Zip<
   K extends readonly PropertyKey[],
-  V extends readonly any[]
+  V extends readonly unknown[]
 > = Simplify<{
   [I in keyof K as I extends `${number}`
     ? K[I] extends PropertyKey
@@ -46,20 +50,20 @@ type Zip<
 }>
 function zip<
   K extends readonly PropertyKey[],
-  V extends readonly any[]
+  V extends readonly unknown[]
 >( keys: K, values: V ): Zip<K, V> {
-  const out = {} as any
+  const out: Record<PropertyKey, unknown> = {}
   for (let i = 0; i < keys.length; i++)
     if (i in values) out[keys[i]] = values[i]
-  return out
+  return out as Zip<K, V>
 }
 
 
 type MapToStrings<T extends unknown[]> =
   { [K in keyof T]: string }
 
-type GetCallback<Params extends [...args: any], Name extends string> =
-  Params extends [name: Name, callback: infer Callback, ...args: any[]]
+type GetCallback<Params extends [...args: unknown[]], Name extends string> =
+  Params extends [name: Name, callback: infer Callback, ...args: unknown[]]
     ? Callback : never
 
 type GetOnMethod<Target extends Events> =
@@ -69,26 +73,26 @@ type GetName<Target extends Events> =
   OverloadedParams<GetOnMethod<Target>>[0]
 
 type OverloadedParams<T> = T extends {
-  (...args: infer A1): any
-  (...args: infer A2): any
-  (...args: infer A3): any
-  (...args: infer A4): any
-  (...args: infer A5): any
-  (...args: infer A6): any
-  (...args: infer A7): any
-  (...args: infer A8): any
-  (...args: infer A9): any
-  (...args: infer A10): any
-  (...args: infer A11): any
-  (...args: infer A12): any
-  (...args: infer A13): any
-  (...args: infer A14): any
-  (...args: infer A15): any
-  (...args: infer A16): any
-  (...args: infer A17): any
-  (...args: infer A18): any
-  (...args: infer A19): any
-  (...args: infer A20): any
+  (...args: infer A1): unknown
+  (...args: infer A2): unknown
+  (...args: infer A3): unknown
+  (...args: infer A4): unknown
+  (...args: infer A5): unknown
+  (...args: infer A6): unknown
+  (...args: infer A7): unknown
+  (...args: infer A8): unknown
+  (...args: infer A9): unknown
+  (...args: infer A10): unknown
+  (...args: infer A11): unknown
+  (...args: infer A12): unknown
+  (...args: infer A13): unknown
+  (...args: infer A14): unknown
+  (...args: infer A15): unknown
+  (...args: infer A16): unknown
+  (...args: infer A17): unknown
+  (...args: infer A18): unknown
+  (...args: infer A19): unknown
+  (...args: infer A20): unknown
 } ? ( A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8 | A9 | A10
     | A11 | A12 | A13 | A14 | A15 | A16 | A17 | A18 | A19 | A20
 ) : never

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- ambient declarations that mirror untyped browser/Electron/callbag APIs */
-
-
 declare module 'callbag-flat-map' {
   import { Source } from 'callbag'
 
@@ -13,7 +10,7 @@ declare module 'callbag-filter' {
   import { Source } from 'callbag'
 
   function filter <Out extends In, In>(predicate: (v: In) => v is Out): ((set: Source<In>) => Source<Out>)
-  function filter <T>(predicate: (v: T) => any): ((set: Source<T>) => Source<T>)
+  function filter <T>(predicate: (v: T) => unknown): ((set: Source<T>) => Source<T>)
 
   export default filter
 }

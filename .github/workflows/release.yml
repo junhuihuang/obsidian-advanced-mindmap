@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: write
+  # Required by actions/attest-build-provenance so the release assets can carry
+  # a signed provenance attestation users can verify against this repository.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -15,16 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-          cache: pnpm
+          cache: npm
 
       - name: Check version
         run: |
@@ -36,13 +35,33 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run tests
-        run: pnpm test -- --run
+        run: npm test -- --run
 
       - name: Build
-        run: pnpm run build
+        run: npm run build
+
+      # Obsidian Sync's Standard plan cannot sync files larger than 5 MB, so a
+      # bloated bundle would make the plugin uninstallable for those users.
+      - name: Check bundle size
+        run: |
+          size=$(stat -c %s main.js)
+          limit=$((5 * 1024 * 1024))
+          echo "main.js is ${size} bytes (limit ${limit})"
+          if [ "$size" -gt "$limit" ]; then
+            echo "::error file=main.js::main.js exceeds the 5 MB Obsidian Sync limit"
+            exit 1
+          fi
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -52,3 +71,4 @@ jobs:
             manifest.json
             styles.css
           fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -1,5 +1,3 @@
-/* eslint-disable obsidianmd/prefer-create-el -- the harness builds detached DOM for benchmarks, outside the app's `createEl` helpers */
-
 /**
  * Shared harness for the editing performance tests and benchmarks.
  *
@@ -70,8 +68,8 @@ export function createPerfHarness(markdown: string, options: Partial<NodeEditorO
   // Only the container of the previous harness goes: anything else in the
   // document (an inline editor another harness is still measuring) stays put.
   lastContainer?.remove()
-  const container = document.createElement('div')
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  const container = createDiv()
+  const svg = createSvg('svg')
   container.append(svg)
   document.body.append(container)
   lastContainer = container
@@ -141,7 +139,7 @@ export function createPerfHarness(markdown: string, options: Partial<NodeEditorO
 
 /** One `g.markmap-node`, with the payload markmap gives it. */
 function nodeGroup(path: number[], line: number, endLine: number): SVGGElement {
-  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  const group = createSvg('g')
   group.setAttribute('class', 'markmap-node')
   ;(group as unknown as { __data__: unknown }).__data__ = {
     content: 'x',
@@ -150,10 +148,10 @@ function nodeGroup(path: number[], line: number, endLine: number): SVGGElement {
   }
 
   // markmap's visible box: foreignObject > div > div, which the editor measures.
-  const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+  const foreignObject = createSvg('foreignObject')
   foreignObject.setAttribute('class', 'markmap-foreign')
-  const outer = document.createElement('div')
-  const content = document.createElement('div')
+  const outer = createDiv()
+  const content = createDiv()
   content.getBoundingClientRect = () => ({ left: 10, top: 10, width: 50, height: 20 }) as DOMRect
   outer.append(content)
   foreignObject.append(outer)
