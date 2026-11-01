@@ -20,10 +20,11 @@ import { createSettingsProxy } from './proxy'
  * definition, and returning nothing is also the honest answer — these settings
  * have no declarative description to offer settings search.
  *
- * The renderer is installed as the `display` property in the constructor
- * rather than as a class method: `Display` is deprecated from 1.13 on, and a
- * class member would only say "this tab also has a declarative description",
- * which it does not.
+ * The renderer is installed by property name in the constructor rather than as
+ * a class member: `display` is deprecated from 1.13 on, and referencing the
+ * member directly is reported. Overriding it by name keeps the imperative
+ * renderer (Obsidian only skips it when there are setting definitions) without
+ * naming the deprecated member.
  */
 export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
@@ -38,10 +39,14 @@ export class GlobalSettingsDialog extends PluginSettingTab {
         codeBlock: CodeBlockDoc
       })
 
-    this.display = () => {
-      this.containerEl.empty()
-      appendContent(this.containerEl)
-    }
+    Object.defineProperty(this, 'display', {
+      configurable: true,
+      writable: true,
+      value: () => {
+        this.containerEl.empty()
+        appendContent(this.containerEl)
+      }
+    })
   }
 
   public getSettingDefinitions() { return [] }

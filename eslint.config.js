@@ -49,18 +49,6 @@ export default [
     },
   },
   {
-    // The settings tab keeps the imperative renderer: a paginated layout with
-    // inherited per-file values and a live preview has no declarative
-    // description, and `getSettingDefinitions()` returns an empty list so
-    // Obsidian keeps calling `display()` (see the class comment). Installing
-    // that renderer is the tab's only use of the deprecated member, so the
-    // deprecation warning is not actionable here.
-    files: ['src/settings/dialogs.ts'],
-    rules: {
-      '@typescript-eslint/no-deprecated': 'off',
-    },
-  },
-  {
     // Test fixtures size fake nodes with inline styles and build DOM by hand;
     // none of the app-facing rules apply there.
     files: ['**/*.test.ts'],

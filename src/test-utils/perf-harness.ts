@@ -98,8 +98,8 @@ export function createPerfHarness(markdown: string, options: Partial<NodeEditorO
   // replaced. It is read and written by name: the types mark
   // `querySelectorAll` as deprecated because one of its overloads covers the
   // deprecated HTML tags, so any direct reference to the member is reported.
-  const nativeQuerySelectorAll = Reflect.get(svg, 'querySelectorAll') as
-    (selectors: string) => NodeListOf<Element>
+  const nativeQuerySelectorAll: (selectors: string) => NodeListOf<Element> =
+    Reflect.get(svg, 'querySelectorAll')
   Object.defineProperty(svg, 'querySelectorAll', {
     configurable: true,
     value: (selectors: string) => {
