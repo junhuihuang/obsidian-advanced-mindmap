@@ -40,15 +40,15 @@ registerEvent('click', ({ event, parentMindmap, href }) => {
   app.workspace.openLinkText(href, path)
 })
 
-plugin.registerHoverLinkSource('mindmap-nextgen', {
-  display: 'Mindmap Nextgen',
+plugin.registerHoverLinkSource('advanced-mindmap', {
+  display: 'Advanced Mindmap',
   defaultMod: true
 })
 
 registerEvent('mouseover', ({ event, target, parentMindmap, href }) => {
   app.workspace.trigger('hover-link', {
     event,
-    source: 'mindmap-nextgen',
+    source: 'advanced-mindmap',
     hoverParent: parentMindmap,
     targetEl: target,
     linktext: href

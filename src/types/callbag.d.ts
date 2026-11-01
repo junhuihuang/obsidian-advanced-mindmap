@@ -1,12 +1,4 @@
 
-declare module 'callbag-of' {
-  import { Source } from 'callbag'
-
-  const of: <T>(...values: T[]) => Source<T>
-
-  export default of
-}
-
 declare module 'callbag-flat-map' {
   import { Source } from 'callbag'
 
@@ -46,22 +38,6 @@ declare module 'callbag-scan' {
   export default scan
 }
 
-declare module 'callbag-start-with' {
-  import { Source } from 'callbag'
-
-  const startWith: <T>(...values: T[]) => (source: Source<T>) => Source<T>
-
-  export default startWith
-}
-
-declare module 'callbag-pairwise' {
-  import { Source } from 'callbag'
-
-  const pairwise: <T>(source: Source<T>) => Source<[T, T]>
-
-  export default pairwise
-}
-
 declare module 'callbag-partition' {
   import { Source } from 'callbag'
 
@@ -91,12 +67,4 @@ declare module 'callbag-drop-repeats' {
   const dropRepeats: <I>(shouldDrop?: (previous: I, latest: I) => boolean) => (source: Source<I>) => Source<I>
 
   export default dropRepeats
-}
-
-declare module 'callbag-replay-all' {
-  import { Source } from 'callbag'
-
-  const replay: (count?: number) => <I>(source: Source<I>) => Source<I>
-
-  export default replay
 }

@@ -1,6 +1,5 @@
-export const MM_VIEW_TYPE = 'mindmap-nextgen-plugin'
-export const MD_VIEW_TYPE = 'markdown'
+export const MM_VIEW_TYPE = 'advanced-mindmap-view'
 
 export const cssClasses = {
-  highlight: 'mmng-highlight-inline',
+  highlight: 'advmm-highlight-inline',
 }

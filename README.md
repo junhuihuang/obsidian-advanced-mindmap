@@ -1,230 +1,99 @@
-# Mindmap NextGen
+# Advanced Mindmap
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/verocloud/obsidian-mindmap-nextgen/release.yml?logo=github&style=for-the-badge)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/verocloud/obsidian-mindmap-nextgen?style=for-the-badge&sort=semver)
+**Turn any Markdown note into a mindmap you can edit.**
 
-Obsidian plugin to view your notes as mindmaps using [Markmap](https://markmap.js.org/).
+Advanced Mindmap renders your notes with [Markmap](https://markmap.js.org/) and writes every change — adding, renaming, moving and deleting nodes — straight back to the Markdown file.
 
-[<img src="https://github.com/user-attachments/assets/dcbda58a-454d-4d45-93ee-0901449ce8c6" width="200">](https://buymeacoffee.com/jamestindal)
+English | [简体中文](README.zh-CN.md)
 
-## Table of contents
-+ [Usage](#usage)
-+ ["More options" menu](#more-options-menu)
-  + [Pin/Unpin](#pinunpin)
-  + [Copy screenshot](#copy-screenshot)
-  + [Collapse all](#collapse-all)
-  + [Toggle toolbar](#toggle-toolbar)
-+ [Other features](#other-features)
-  + [Checkboxes](#checkboxes)
-  + [LaTeX](#latex)
-  + [Syntax Highlighting](#syntax-highlighting)
-  + [Per-node styling and folding](#per-node-styling-and-folding)
-+ [Frontmatter](#frontmatter)
-+ [Settings](#settings)
-  + [Coloring approaches](#coloring-approaches)
-  + [Line thickness](#line-thickness)
-  + [Highlight inline markmaps](#highlight-inline-markmaps)
-  + [Use title as root node](#use-title-as-root-node)
-  + [Markmap settings](#markmap-settings)
-+ [Installing](#installing)
-+ [Contributing](#contributing)
+## Features
 
+- **Edit on the map.** Add, rename, reorder and delete nodes without leaving the mindmap. Only the affected lines of the note are rewritten, so frontmatter, prose and code blocks stay untouched.
+- **Keyboard first.** Navigate with arrows or `h`/`j`/`k`/`l`, edit with `i`, add with `Tab`/`Enter`, select ranges with `Shift`, and fold with Vim-style `z` commands.
+- **Search and focus.** `/` finds nodes anywhere in the tree; `f` dims everything except the node you are working on.
+- **Drag and drop.** Move a subtree by dragging it onto another node, or drop it between siblings to reorder.
+- **Fast on large maps.** Nodes are updated incrementally, so the view stays stable while you type.
+- **Native to Obsidian.** Pinned and unpinned mindmap tabs, plus inline `markmap` code blocks inside notes.
+- **Markdown-native.** Headings, lists, checkboxes, tables, internal links, LaTeX and syntax-highlighted code render as nodes.
+
+## Installation
+
+### Community plugins
+
+1. Open **Settings → Community plugins → Browse**.
+2. Search for **Advanced Mindmap**.
+3. Click **Install**, then **Enable**.
+
+### Manual
+
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/junhuihuang/obsidian-advanced-mindmap/releases/latest).
+2. Copy them into `<your vault>/.obsidian/plugins/advanced-mindmap/`.
+3. Reload Obsidian, then enable **Advanced Mindmap** under **Settings → Community plugins**.
+
+Beta testers can also add `junhuihuang/obsidian-advanced-mindmap` with [BRAT](https://github.com/TfTHacker/obsidian42-brat).
 
 ## Usage
 
-Open the command palette (cmd/ctrl-p) and begin typing the name of one of the 2 commands.
+Run one of these commands from the command palette:
 
-<img width="720" alt="Command palette commands" src="https://user-images.githubusercontent.com/10291002/216599311-75ec8e62-3e99-4e09-abc3-86ff125ab308.png">
+- **Advanced Mindmap: Open pinned mindmap** — a mindmap bound to a single note.
+- **Advanced Mindmap: Open unpinned mindmap** — follows the note you last opened.
 
-What's the difference between a pinned and an unpinned mindmap? A pinned mindmap is linked to a single Markdown document. An unpinned mindmap will update based on whichever document is the last one you clicked on.
+Or embed a map directly in a note:
 
-You can also insert mindmaps inside your document using a Markdown code block tagged with "markmap". For example:
-
-~~~
+````markdown
 ```markmap
-# Mindmap
-## Mindmap
+# Project
+## Goals
+- Ship 1.0
+- Write docs
 ```
-~~~
-
-
-## "More options" menu
-
-This is the menu in the top right of each tab.
-
-<img width="104" alt="image" src="https://user-images.githubusercontent.com/10291002/217636599-1b33270b-4887-4153-aa07-468255ccf5f2.png">
-
-
-### Pin/Unpin
-
-Switch the tab to unpinned, or pin it to the active document.
-
-### Copy screenshot
-
-Copy a PNG of the mindmap to the clipboard.
-Background and text color are configurable in settings or the document's frontmatter.
-
-### Collapse all
-
-Closes all mindmap nodes, leaving just the root visible
-
-### Toggle toolbar
-
-Show or hide the toolbar in the bottom right of the mindmap
-
-
-## Other Features
-
-### Checkboxes
-
-Checkboxes will be displayed in the mindmap like so:
-
-```
-# Housework
-## Main
-- [x] Dishes
-- [ ] Cleaning the bathroom
-- [x] Change the light bulbs
-- [ ] something else
-## [x] Also works on titles
-```
-![Mindmap checkbox example](images/mind-map-checkboxes.png)
-
-### LaTeX
-LaTex expressions will be rendered in your mindmaps. Surround an inline expression with a dollar sign on either side.
-
-`$\frac{\partial f}{\partial t}$`
-
-Or use two dollar signs for a multiline expression.
-```
-$$
-\frac{\partial f}{\partial t}
-$$
-```
-
-### Syntax Highlighting
-
-This uses highlightjs for syntax highlighting, so you need to use highlightjs compatible colour schemes.
-Here's a demonstration of all the colour schemes provided by highlightjs: https://highlightjs.org/examples
-Once you've picked a colour scheme, you can download it from here: https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/
-
-Put the css file in your [Snippets](https://help.obsidian.md/Extending+Obsidian/CSS+snippets) folder and turn it on in Settings > Appearance.
-
-tokyo-dark is a nice pair of themes for light and dark mode.
-Mindmap Nextgen is not yet able to switch between light and dark mode syntax highlighting automatically
-
-
-### Per-node styling and folding
-
-You can style individual nodes and control their folding using inline HTML comments with CSS-style declarations:
-
-```markdown
-# Project <!-- nodeColor: #663366 -->
-## Risks <!-- bgColor: red; color: white; fold: this -->
-- Item one
-- Item two
-## Goals <!-- nodeColor: #2e86de; fold: tree -->
-### Short term
-### Long term
-```
-
-**Supported parameters:**
-
-| Parameter | Effect | Propagates to children |
-|-----------|--------|----------------------|
-| `nodeColor` | Branch line/circle color | ✅ Yes |
-| `bgColor` | Node label background | ❌ No |
-| `color` | Node label text color | ❌ No |
-| `fold: this` | Collapse this node by default | ❌ No |
-| `fold: tree` | Collapse this node and all descendants | ❌ No |
-
-
-## Frontmatter
-
-Some settings can be set in each document's frontmatter. Frontmatter settings take precedence over global settings, when set.
-
-The plugin will use any of [markmap's settings](https://markmap.js.org/docs/json-options) except for `extraJs` and `extraCss`).
-
-**Example:**
-```markdown
----
-markmap:
-  screenshotTextColor: #28F48D
-  highlight: true
-  titleAsRootNode: true
----
-```
-
-
-## Settings
-
-### Coloring approaches
-There are three approaches to coloring the branches of the mindmap for you to choose from, either in plugin settings or each document's frontmatter.
-
-#### Branch coloring
-This mode will choose random colors per branch. "Color freeze level" decides at what depth the branches will stop changing colors.
-
-#### Depth coloring
-In this mode, branches are colored based on their depth in the mindmap. You can choose the first three levels' colors, plus a default color for levels deeper than three.
-
-#### Single color
-In this mode, all branches are the same color.
-
-
-### Line thickness
-Set line thickness for the first three depth levels, and a default thickness for levels beyond that.
-
-
-### Highlight inline markmaps
-
-Frontmatter setting: `highlight`
-
-Add a background to inline markmaps to make them stand out from the rest of the page.
-
-
-### Use title as root node
-
-Frontmatter setting: `titleAsRootNode`
-
-Generate mindmaps with the title at the bottom level, so you can avoid repeating the title.
-
-
-### Screenshot settings
-
-Frontmatter settings: `screenshotTextColor`, `screenshotBgColor`
-
-Decide what colors the screenshot function will use.
-
-Take screenshots via the ["More options" menu](#more-options-menu).
-
-
-### Markmap settings
-
-There is a section in the plugin settings for adjusting the shape and size of different parts of the mindmap. It might seem confusing at first. You'll have to fiddle around with different combinations of settings to get it the way you like.
-
-
-## Contributing
-
-### Running in development
-
-* Clone this repo into your vault plugins folder.
-  * This is at `<vault path>/.obsidian/plugins`
-  * Use [Manage Vaults](https://help.obsidian.md/Files+and+folders/Manage+vaults) to find the path to your vault.
-  * `cd <vault path>/.obsidian/plugins`
-  * `git clone https://github.com/james-tindal/obsidian-mindmap-nextgen`
-* Open the repo: `cd obsidian-mindmap-nextgen`
-* Install dependencies: `pnpm i`
-* Compile and watch for changes: `npm run dev`
-
-&nbsp;
-* Go to Settings > Community plugins in Obsidian.
-* Ensure restricted mode is off
-* Click the reload plugins button
-* Enable Mindmap NextGen
-
-### Releasing a new version
-
-* ensure dependency installed: jq
-* run release-1.sh
-* merge the created branch into main via pull request
-* run release-2.sh to create a tag which triggers a Github action to push the new release to the Obsidian plugins registry
+````
+
+### Editing
+
+Click a node to select it, then work directly on the map:
+
+- **Shift-click** another node to select everything between them, or drag on empty canvas to draw a selection box.
+- **Drag** a node onto another to move it; drop it between two siblings to reorder it.
+- **Drag the right edge** of the selected node — or press **`Ctrl+Shift`** **`+`** / **`-`** — to make that node wider or narrower.
+- Press **`i`** to rename, **`Tab`** to add a child, **`Enter`** to add a sibling.
+- **Right-click** a node for the same actions in a menu.
+- **`Backspace`** deletes the selection, **`Ctrl+Z`** / **`Ctrl+U`** undo and redo.
+
+Every edit is written back to the note immediately. Cutting and pasting keeps the whole subtree, and ordered lists are renumbered so the file and the map always agree.
+
+### Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| Arrows or `h` `j` `k` `l` | Move the selection |
+| `Shift` + move | Extend the selection from its anchor |
+| `i` | Edit the selected node |
+| `Tab` / `Enter` | Add a child / sibling node |
+| `Backspace` / `Delete` | Delete the selected nodes |
+| `J` / `K` | Move the selected node down / up among siblings |
+| `Ctrl+X` / `Ctrl+V` | Cut / paste nodes |
+| `Ctrl+Z` / `Ctrl+U` | Undo / redo |
+| `f` / `F` | Focus the selected node / its siblings |
+| `Shift+M` | Center the selected subtree |
+| `Shift` `+` / `-` | Zoom in / out (hold to zoom smoothly) |
+| `Ctrl+Shift` `+` / `-` | Widen / narrow the selected node |
+| `z` `c` / `z` `o` | Fold / unfold one level |
+| `z` `C` / `z` `O` | Fold one level of a subtree / unfold all |
+| `z` `a` | Toggle fully collapsed / expanded |
+| `/`, then `n` / `p` | Search nodes, jump to next / previous match |
+| `Escape` | Clear the selection or close the search |
+| `?` | Show all shortcuts |
+
+Press `?` on the map at any time to see the full overlay.
+
+## Notes
+
+Advanced Mindmap writes directly to your Markdown notes. Only the lines belonging to the node you edit are rewritten, and edits can be undone with `Ctrl+Z` while the map is open. Even so, keep backups or version your vault (Git, Obsidian Sync, etc.) before editing large or important maps.
+
+## Credits
+
+Advanced Mindmap is built on [Markmap](https://markmap.js.org/) and is an independent fork of [Mindmap NextGen](https://github.com/james-tindal/obsidian-mindmap-nextgen) by James Tindal, which grew out of [obsidian-mind-map](https://github.com/lynchjames/obsidian-mind-map) by James Lynch.
+
+Released under the [MIT License](LICENSE).

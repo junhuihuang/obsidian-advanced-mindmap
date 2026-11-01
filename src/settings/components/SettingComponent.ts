@@ -122,7 +122,7 @@ export const SettingComponent = (options: SettingOptions) => {
     }
 
     function construct() {
-      const buttonContainer = createDiv('setting-item-info mmng-reset')
+      const buttonContainer = createDiv('setting-item-info advmm-reset')
       const viewActions = createDiv({ cls: 'view-actions', parent: buttonContainer })
       const resetButton = new ExtraButtonComponent(viewActions).setIcon('refresh-ccw')
       node.prepend(buttonContainer)
@@ -131,10 +131,10 @@ export const SettingComponent = (options: SettingOptions) => {
 
     function setInherit(yes: boolean) {
       if (yes) {
-        node.addClass('mmng-faded')
+        node.addClass('advmm-faded')
         resetButton.extraSettingsEl.toggleVisibility(false)
       } else {
-        node.removeClass('mmng-faded')
+        node.removeClass('advmm-faded')
         resetButton.extraSettingsEl.toggleVisibility(true)
       }
     }

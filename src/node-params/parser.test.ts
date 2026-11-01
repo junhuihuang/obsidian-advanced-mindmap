@@ -158,4 +158,10 @@ describe('parseNodeParams', () => {
     expect(result).not.toHaveProperty('bgColor')
     expect(result.color).toBe('red')
   })
+
+  it('ignores the legacy width param (widths live in the plugin data now)', () => {
+    expect(parseNodeParams('width: 240')).toEqual({})
+    expect(parseNodeParams('bgColor: red; width: 300; fold: this'))
+      .toEqual({ bgColor: 'red', fold: 'this' })
+  })
 })

@@ -6,12 +6,20 @@ import { CodeBlockSettings, FileSettings, globalSettings, GlobalSettings } from 
 import { cssClasses } from 'src/constants'
 import { assert, isObjectEmpty, notNullish } from 'src/utilities/utilities'
 import { createMarkmap, getOptions, transformMarkdown, splitMarkdown } from 'src/rendering/renderer-common'
+import { createMindmapEditor } from 'src/rendering/editor-wiring'
 import { renderCodeblocks$ } from 'src/rendering/style-features'
 import Callbag, { dragAndDrop, fromEvent } from 'src/utilities/callbag'
 import { CodeBlockSettingsDialog } from 'src/settings/dialogs'
 import { CodeBlock } from 'src/new/codeBlockHandler'
+import type { NodeEditorHandle } from 'src/editing/node-editor'
 import { svgs } from 'src/internal-links/handle-internal-links'
 import { strings } from 'src/translation'
+import { parseSource } from 'src/editing/source-tree'
+import { removeChildlessCircles } from 'src/rendering/node-circles'
+import { applyNodeWidths } from 'src/rendering/node-widths'
+import { nodeWidthsFor, saveNodeWidth } from 'src/settings/filesystem'
+import { createTreeUpdater } from './tree-updater'
+import { latestRenderQueue } from './render-queue'
 
 
 export type CodeBlockRenderer = ReturnType<typeof CodeBlockRenderer>
@@ -20,29 +28,69 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
 
   // createMarkmap should take the full markdown and render
   // transformMarkdown should be merged into this
-  const { markmap, svg } = createMarkmap({ parent: containerEl, toolbar: false })
+  const { markmap, svg } = createMarkmap({ parent: containerEl })
 
   svgs.register(component, svg, file)
 
   const fileText = editor.getValue()
   const { settings: fileSettings } = splitMarkdown('file', fileText)
   const { settings: codeBlockSettings, body } = splitMarkdown('codeBlock', codeBlock.markdown)
-  const rootNode = transformMarkdown(codeBlock.markdown)
   const settings = new SettingsManager(codeBlock, fileSettings, codeBlockSettings)
+
+  let currentMarkdown = codeBlock.markdown
+  let sourceRoots = parseSource(currentMarkdown)
+  let renderQueue = latestRenderQueue()
+  let destroyed = false
+  const treeUpdater = createTreeUpdater(markmap)
+  let editorHandle: NodeEditorHandle | undefined
 
   SizeManager(containerEl, svg, settings)
 
-  if (markdownView.getMode() === 'source')
+  if (markdownView.getMode() === 'source') {
     SettingsDialog(codeBlock, body, codeBlockSettings, fileSettings, editor)
+    editorHandle = createMindmapEditor(markmap, {
+      svg,
+      getMarkdown: () => currentMarkdown,
+      getSourceRoots: () => sourceRoots,
+      setMarkdown: writeMarkdown,
+      getNodeWidths: () => nodeWidthsFor(file.path),
+      setNodeWidth: (key, width) => saveNodeWidth(file.path, key, width),
+      onSourceChange: treeUpdater.recordChange,
+      getAnimationDuration: () => settings.merged.animationDuration ?? 500,
+    })
+  }
+
+  component.register(() => {
+    destroyed = true
+    renderQueue.destroy()
+    editorHandle?.destroy()
+    markmap.destroy()
+  })
 
   render().then(() =>
     markmap.fit())
 
   Callbag.subscribe(renderCodeblocks$, render)
 
-  function render() {
+  function render(): Promise<void> {
+    if (destroyed) return Promise.resolve()
+    return renderQueue.schedule(() => doRender())
+  }
+
+  function doRender(): Promise<void> {
+    if (destroyed) return Promise.resolve()
+    const scope = JSON.stringify(settings.merged)
+    if (treeUpdater.isCurrent(currentMarkdown, scope)) return Promise.resolve()
+    sourceRoots = parseSource(currentMarkdown)
+    const rootNode = transformMarkdown(currentMarkdown, sourceRoots)
+
     const markmapOptions = getOptions(settings.merged)
-    const promise = markmap.setData(rootNode, markmapOptions)
+
+    const promise = treeUpdater.update(rootNode, markmapOptions, currentMarkdown, scope).then(async () => {
+      if (destroyed) return
+      if (applyNodeWidths(svg, nodeWidthsFor(file.path))) await markmap.renderData()
+      if (!destroyed) removeChildlessCircles(svg)
+    })
 
     const { classList } = containerEl.parentElement!
     settings.merged.highlight
@@ -50,6 +98,25 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
       : classList.remove(cssClasses.highlight)
 
     return promise
+  }
+
+  function writeMarkdown(markdown: string) {
+    currentMarkdown = markdown
+    sourceRoots = parseSource(markdown)
+
+    const sectionInfo = codeBlock.getSectionInfo()
+    if (sectionInfo) {
+      const text = markdown.endsWith('\n') ? markdown : `${markdown}\n`
+      editor.replaceRange(
+        text,
+        EditorLine(sectionInfo.lineStart + 1),
+        EditorLine(sectionInfo.lineEnd),
+      )
+    }
+
+    // Re-render straight away; the editor no longer waits for the write, so
+    // this is what makes a new node show up immediately.
+    return render()
   }
 }
 

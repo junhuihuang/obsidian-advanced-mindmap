@@ -48,7 +48,7 @@ const ColoringApproach = SettingComponent({
 
 const Description = (approach: Coloring) => 
   HtmlComponent(new Setting(createFragment())
-    .setClass('mmng-coloring-approach-description')
+    .setClass('advmm-coloring-approach-description')
     .setDesc(strings.settings.settings.coloring.description[approach])
     .settingEl)
 

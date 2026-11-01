@@ -6,7 +6,9 @@ export default defineConfig({
   root: '.',
   resolve: {
     alias: {
-      src: path.resolve(__dirname, './src')
+      src: path.resolve(import.meta.dirname, './src'),
+      // The real module only ships type declarations; tests use a tiny stub.
+      obsidian: path.resolve(import.meta.dirname, './src/test-utils/obsidian.ts'),
     },
   },
   test: {

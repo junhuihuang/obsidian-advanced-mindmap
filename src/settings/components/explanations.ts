@@ -11,13 +11,13 @@ const FileDoc = () =>
     Text(strings.settings.explanations.file[0] + ' '),
     Button('dot-network'),
     Text(' ' + strings.settings.explanations.file[1])
-  ], 'mmng-settings-level-explanation')
+  ], 'advmm-settings-level-explanation')
 
 const CodeBlockDoc = () =>
   div([
     Text(strings.settings.explanations.codeBlock[0] + ' '),
     Button('dot-network'),
     Text(' ' + strings.settings.explanations.codeBlock[1])
-  ], 'mmng-settings-level-explanation')
+  ], 'advmm-settings-level-explanation')
 
 export { FileDoc, CodeBlockDoc }

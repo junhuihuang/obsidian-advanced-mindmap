@@ -1,15 +1,14 @@
 import { ButtonComponent, Setting } from 'obsidian'
 import { Component, div, fragment } from './various'
 import { Resolve } from 'src/utilities/utilities'
-import { fromEntries } from 'src/utilities/entries'
 import { strings } from 'src/translation'
 
 type Level = 'global' | 'file' | 'codeBlock'
 export const PageSelector = (initialPage: Level, pages: Record<Level, () => Component>) => (parent: Node) => {
   const selector = new Setting(createFragment())
-  const pageContainer = div([], 'mmng-main')
+  const pageContainer = div([], 'advmm-main')
 
-  const buttons = fromEntries(
+  const buttons = Object.fromEntries(
     (['global', 'file', 'codeBlock'] as const)
     .map(level => [level,
       Resolve<ButtonComponent>(resolve => selector.addButton(resolve))
@@ -23,15 +22,15 @@ export const PageSelector = (initialPage: Level, pages: Record<Level, () => Comp
   function showPage(level: Level) {
     pageContainer.node.replaceChildren(pages[level]().node)
 
-    activeButton?.buttonEl.removeClass('mmng-active')
+    activeButton?.buttonEl.removeClass('advmm-active')
     activeButton = buttons[level]
-    activeButton.buttonEl.addClass('mmng-active')
+    activeButton.buttonEl.addClass('advmm-active')
   }
 
   showPage(initialPage)
 
   const component = fragment([
-    div([Component(selector.settingEl)], 'mmng-level-selector'),
+    div([Component(selector.settingEl)], 'advmm-level-selector'),
     pageContainer
   ])
 

@@ -14,10 +14,10 @@ export const start = Callbag.create<void>(
 const layoutReady = new Promise<void>(resolve =>
   app.workspace.onLayoutReady(resolve))
 
-const mmngLayoutReady = layoutReady.then(layoutManager.deserialise)
+const advmmLayoutReady = layoutReady.then(layoutManager.deserialise)
 
 export const layoutChange = Callbag.pipe(
-  fromPromise(mmngLayoutReady),
+  fromPromise(advmmLayoutReady),
   flatMap(() => Callbag.create<void>((next, error, complete) => {
     next()
     plugin.registerEvent(app.workspace.on('layout-change', next))
@@ -52,8 +52,8 @@ export const [pin, unpin] =
     ]
   )
 
-export const commandOpenUnpinned = fromCommand('mindmapnextgen:unpinned', strings.commands.unpinned)
-export const commandOpenPinned = fromCommand('mindmapnextgen:pinned', strings.commands.pinned)
+export const commandOpenUnpinned = fromCommand('advanced-mindmap:unpinned', strings.commands.unpinned)
+export const commandOpenPinned = fromCommand('advanced-mindmap:pinned', strings.commands.pinned)
 
 
 Callbag.subscribe(isDarkMode, isDarkMode => {

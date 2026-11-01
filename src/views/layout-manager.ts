@@ -1,5 +1,4 @@
-import { WorkspaceSplit, WorkspaceTabs, WorkspaceLeaf, TFile } from 'obsidian'
-import { range } from 'ramda'
+import type { WorkspaceSplit, WorkspaceTabs, WorkspaceLeaf, TFile } from 'obsidian'
 import { MM_VIEW_TYPE } from 'src/constants'
 import { leafManager } from './leaf-manager'
 import { LoadingView } from './loading-view'
@@ -8,133 +7,99 @@ import { getActiveFile } from './get-active-file'
 import views from './views'
 import { layout } from 'src/settings/filesystem'
 
-
 export type MindmapSubject = TFile | 'unpinned'
 
-export type Layout = Tabs | Split
-type Split = (Split | Tabs)[]
+type Tree = Tabs | Split
+type Split = Tree[]
 type Tabs = (FlatSubject | null)[]
-
-type Node = WorkspaceSplit | WorkspaceTabs | WorkspaceLeaf
-type NodeList = WorkspaceSplit[] | WorkspaceTabs[] | WorkspaceLeaf[]
+// Legacy arrays were relative to rootSplit.children[0]. Version the new
+// format so that those arrays are never mistaken for a whole-root layout.
+export type Layout = Tree | { version: 1, root: Tree }
+type Branch = WorkspaceSplit | WorkspaceTabs
+type Node = Branch | WorkspaceLeaf
 
 type FlatSubject =
 | { type: 'unpinned' }
 | { type: 'pinned', path: TFile['path'] }
 
 export const layoutManager = {
-  serialise: () => layout.save(getLayout()),
-  deserialise
+  serialise: () => layout.save({ version: 1, root: serialise(app.workspace.rootSplit) }),
+  deserialise,
+  renderVisible: () => renderVisible(app.workspace.rootSplit),
 }
 
-function getLayout(): Layout {
-  const topLevel = app.workspace.rootSplit.children[0] as WorkspaceSplit | WorkspaceTabs
-  return loop(topLevel)
+function serialise(node: Node): any {
+  if ('children' in node) return node.children.map(child => serialise(child as Node))
+  if (node.view.getViewType() !== MM_VIEW_TYPE) return null
+  const subject = views.get(node.view as MindmapView)
+  if (!subject) return null
+  return subject === 'unpinned'
+    ? { type: 'unpinned' }
+    : { type: 'pinned', path: subject.path }
+}
 
-  function loop(node: Node): any {
-    if ('children' in node) {
-      const children = node.children as NodeList
-      return children.map(loop)
-    }
-    else {
-      if (node.view.getViewType() !== MM_VIEW_TYPE) return null
-      const view = node.view as MindmapView
-      const subject = views.get(view)
-      if (subject) return Subject.serialise(subject)
-      else         return null
-    }
+function renderLeaf(leaf: WorkspaceLeaf | undefined) {
+  if (!(leaf?.view instanceof MindmapView)) return
+  const subject = views.get(leaf.view)
+  const file = subject === 'unpinned' ? getActiveFile() : subject
+  if (file) leaf.view.firstRender(file)
+}
+
+function renderVisible(node: Branch) {
+  if (node.type === 'tabs') {
+    const tabs = node as WorkspaceTabs
+    renderLeaf(tabs.children[tabs.currentTab])
+  }
+  else {
+    for (const child of node.children) renderVisible(child as Branch)
   }
 }
 
 async function deserialise() {
-  const actualLayout = app.workspace.rootSplit.children[0] as WorkspaceSplit | WorkspaceTabs
-  const serialisedLayout = layout.load()
-  const activeTabGroup = app.workspace.activeTabGroup!
+  const saved = layout.load()
+  const root = app.workspace.rootSplit
+  const activeTabs = app.workspace.activeTabGroup
 
-  type Actual = WorkspaceSplit | WorkspaceTabs
-  async function loop(
-    serialised: Layout,
-    actual: Actual
-  ) {
-    await match(serialised, actual, {
-      async split() {
-        for (const [s, a] of pairs(serialised as Split, (actual as WorkspaceSplit).children))
-          await loop(s, a as Actual)
-      },
-      async tabs() {
-        const tabs = actual as WorkspaceTabs
-        const currentTabIndex = tabs.currentTab
-
-        let queue = Promise.resolve()
-        for (const [s, a] of pairs(serialised as Tabs, (actual as WorkspaceTabs).children)) {
-          if (s === null || a === undefined) continue
-          queue = queue.then(() => mindmap(s, a))
-        }
-        await queue
-
-        // Set currentTab of each tab group
-        const currentTab = tabs.children[currentTabIndex]
-        app.workspace.setActiveLeaf(currentTab)
-        const view = currentTab.view as MindmapView
-        const subject = views.get(view)
-        const file = subject === 'unpinned' ? getActiveFile() : subject
-        if (file) view.firstRender(file)
+  async function restore(tree: Tree, node: Branch | undefined): Promise<void> {
+    if (!node) return
+    if (node.type === 'split') {
+      if (!Array.isArray(tree[0])) return
+      // Replacing leaves mutates workspace arrays; always pair against a
+      // snapshot, not an array being modified by the restoration itself.
+      const children = [...node.children]
+      for (const [index, child] of (tree as Split).entries()) {
+        await restore(child, children[index] as Branch | undefined)
       }
-    })
-
-    function mindmap(serialised: FlatSubject, actual: WorkspaceLeaf) {
-      const subject = Subject.deserialise(serialised as FlatSubject)
-      const leaf = actual as WorkspaceLeaf
-      if (subject)
-        return leafManager.replace(leaf, subject)
+      return
+    }
+    if (Array.isArray(tree[0])) return
+    const tabs = node as WorkspaceTabs
+    const currentIndex = tabs.currentTab
+    const leaves = [...tabs.children]
+    for (const [index, subject] of (tree as Tabs).entries()) {
+      if (!subject || !leaves[index]) continue
+      const file = subject.type === 'unpinned'
+        ? 'unpinned'
+        : app.vault.getMarkdownFiles().find(file => file.path === subject.path)
+      if (file) await leafManager.replace(leaves[index], file)
+    }
+    const current = tabs.children[currentIndex]
+    if (current) {
+      app.workspace.setActiveLeaf(current)
+      renderLeaf(current)
     }
   }
 
-  await loop(serialisedLayout, actualLayout)  // All tab groups done loading
+  if (Array.isArray(saved)) {
+    // Old data only described the first root child. Its missing right-hand
+    // entries cannot be reconstructed, but the saved left-hand tabs can.
+    await restore(saved, root.children[0] as Branch | undefined)
+  }
+  else {
+    await restore(saved.root, root)
+  }
 
-  const activeLeaf = activeTabGroup.children[activeTabGroup.currentTab]
-  app.workspace.setActiveLeaf(activeLeaf)
-
+  const activeLeaf = activeTabs?.children[activeTabs.currentTab]
+  if (activeLeaf) app.workspace.setActiveLeaf(activeLeaf)
   LoadingView.closeAll()
-}
-
-type Matcher = {
-  split: () => Promise<void>
-  tabs: () => Promise<void>
-}
-
-async function match(
-  serialised: Split | Tabs,
-  actual: WorkspaceSplit | WorkspaceTabs,
-  matcher: Matcher
-) {
-  const type = {
-    serialised: Array.isArray(serialised?.[0]) ? 'split' : 'tabs',
-    actual: actual.type
-  }
-
-  if (type.serialised !== type.actual) return
-  const match = type.serialised
-  await matcher[match]()
-}
-
-function* pairs<A, B>(a: A[], b: B[]): Generator<[A, B | undefined]> {
-  for (const index of range(0, a.length))
-    yield [a[index], b[index]]
-}
-
-
-abstract class Subject {
-  static serialise(subject: MindmapSubject): FlatSubject {
-    if (subject === 'unpinned')
-      return { type: 'unpinned' }
-    else
-      return { type: 'pinned', path: subject.path }
-  }
-  static deserialise(fs: FlatSubject): MindmapSubject | undefined {
-    if (fs.type === 'unpinned')
-      return 'unpinned'
-    else
-      return app.vault.getMarkdownFiles().find(tfile => tfile.path === fs.path)
-  }
 }

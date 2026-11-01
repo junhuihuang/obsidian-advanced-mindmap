@@ -8,28 +8,28 @@ import views from 'src/views/views'
 
 
 export const embedPlugin: ITransformPlugin = {
-  name: 'mmng-embed',
+  name: 'advmm-embed',
   transform(hooks) {
     hooks.parser.tap(md => {
-      md.inline.ruler.before('emphasis', 'mmng_embed', (state, silent) => {
+      md.inline.ruler.before('emphasis', 'advmm_embed', (state, silent) => {
         const { matched, length, linkText } = parseMain(state.src.slice(state.pos))
         if (!matched) return false
         if (silent) return true
 
-        const token = state.push('mmng_embed', 'mmng-embed', 0)
+        const token = state.push('advmm_embed', 'advmm-embed', 0)
         token.attrSet('linkText', linkText)
 
         state.pos += length
         return true
       })
 
-      md.renderer.rules.mmng_embed = (tokens, idx) => {
+      md.renderer.rules.advmm_embed = (tokens, idx) => {
         const token = tokens[idx]
         const attrs = (token.attrs || [])
           .map(([key, value]) => `${key}="${value}"`)
           .join(' ')
         
-        return `<mmng-embed ${attrs}></mmng-embed>`
+        return `<advmm-embed ${attrs}></advmm-embed>`
       }
     })
 
@@ -61,7 +61,7 @@ class EmbedElement extends HTMLElement {
 
 	async connectedCallback() {
     const linkText = this.getAttribute('linkText')
-    if (!linkText) throw new Error('mmng-embed component must have a linkText attribute')
+    if (!linkText) throw new Error('advmm-embed component must have a linkText attribute')
 
     const sourcePath = getSourcePath(this)
 
@@ -104,9 +104,9 @@ class EmbedElement extends HTMLElement {
     embedComponent.loadFile()
 	}
 }
-const alreadyRegistered = !!customElements.get('mmng-embed')
+const alreadyRegistered = !!customElements.get('advmm-embed')
 if (!alreadyRegistered)
-  customElements.define('mmng-embed', EmbedElement)
+  customElements.define('advmm-embed', EmbedElement)
 
 function deleteText(parent: ParentNode) {
   for (const node of Array.from(parent.childNodes))
@@ -116,8 +116,7 @@ function deleteText(parent: ParentNode) {
 
 function getSourcePath(embedElement: EmbedElement) {
   const leafElement = embedElement.closest('.workspace-leaf')
-  const view =
-    MindmapView.instances.find(view =>
+  const view = Array.from(MindmapView.instances).find(view =>
       view.leaf.containerEl === leafElement)
   if (!view) throw new Error('Couldn\'t get view')
   const subject = views.get(view)

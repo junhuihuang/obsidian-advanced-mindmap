@@ -9,12 +9,12 @@
     display: none !important;
 }
 
-.mmng-coloring-approach-description {
+.advmm-coloring-approach-description {
     border-top: none;
     padding-top: 0;
 }
 
-.mmng-coloring-approach-description .setting-item-description { padding-top: 0 }
+.advmm-coloring-approach-description .setting-item-description { padding-top: 0 }
 
 
 /* Mindmaps */
@@ -27,7 +27,7 @@
 
 .katex-html { display: none }
 
-.workspace-leaf-content[data-type="mindmap-nextgen-plugin"] .view-content {
+.workspace-leaf-content[data-type="advanced-mindmap-view"] .view-content {
     padding: 0
 }
 
@@ -45,6 +45,17 @@
     display: none;
 }
 
+/* Node label backgrounds. `==highlighted==` text is rendered as `<mark>` and
+   per-node `<!-- bgColor: … -->` labels as a styled `<span>`; both paint a
+   bare rectangle behind the text. Round them with the same radius as the
+   selected-node box so a highlighted node and a selected node share one shape. */
+.markmap-foreign mark,
+.markmap-foreign span[style*='background-color'] {
+    border-radius: var(--radius-s);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
 
 /* Inline mindmaps */
 
@@ -53,7 +64,7 @@
 
 .block-language-markmap { letter-spacing: normal }
 
-.mmng-highlight-inline .block-language-markmap {
+.advmm-highlight-inline .block-language-markmap {
     background-color: var(--code-background);
     padding: 3px;
 }
@@ -103,26 +114,26 @@
     right: calc(var(--icon-width) + var(--padding-width) + var(--margin-width));
 }
 
-.mmng-settings-modal .modal {
+.advmm-settings-modal .modal {
     padding: 0
 }
 
-.mmng-settings-modal .modal-content {
+.advmm-settings-modal .modal-content {
     overflow-y: auto;
 }
 
-.mmng-settings-modal .modal {
+.advmm-settings-modal .modal {
     height: var(--dialog-max-height)
 }
 
-.mmng-settings-modal .modal-content :first-child { border-top: 0 }
+.advmm-settings-modal .modal-content :first-child { border-top: 0 }
 
 .modal-close-button { z-index: 2 }
 
-.mmng-settings-tab {
+.advmm-settings-tab {
     padding: 0
 }
-.mmng-level-selector {
+.advmm-level-selector {
     position: sticky;
     top: 0;
     background-color: var(--background-primary);
@@ -133,44 +144,438 @@
     padding-right: var(--size-4-12);
 }
 
-.mmng-level-selector button.mmng-active {
+.advmm-level-selector button.advmm-active {
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
 }
 
-.mmng-level-selector .setting-item {
+.advmm-level-selector .setting-item {
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.mmng-main {
+.advmm-main {
     padding-left: var(--size-4-12);
     padding-right: var(--size-4-12);
     padding-bottom: var(--size-4-16);
 }
 
-.mmng-main .setting-item:first-child {
+.advmm-main .setting-item:first-child {
     padding-top: 0.75em
 }
 
-.setting-item.mmng-faded {
+.setting-item.advmm-faded {
     opacity: 40%
 }
 
-.setting-item-info.mmng-reset {
+.setting-item-info.advmm-reset {
     flex: none;
 }
 
-.mmng-settings-level-explanation {
+.advmm-settings-level-explanation {
     padding-top: var(--size-4-16);
     padding-left: var(--size-4-8);
     padding-right: var(--size-4-8);
 }
-.mmng-settings-level-explanation .clickable-icon { display: inline-block }
+.advmm-settings-level-explanation .clickable-icon { display: inline-block }
 
-/* Toolbars */
+/* Inline node editor */
 
-.mm-toolbar {
+.advmm-node-editor {
+  z-index: var(--layer-menu);
+  /* The editor covers the node's own box while editing, so nothing may shrink
+     its content box: no padding, and the ring is an inset shadow instead of a
+     border. Any difference would wrap the text at a different point than the
+     node and clip it. */
+  padding: 0;
+  border: none;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.25;
+  border-radius: var(--radius-s);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  /* The spread shadow masks the SVG text beneath, hiding sub-pixel misalignment
+     between the HTML textarea and the SVG node. */
+  box-shadow:
+    inset 0 0 0 1px var(--interactive-accent),
+    0 0 0 2px var(--background-primary);
+}
+
+.advmm-editor-container:focus {
+  outline: none;
+}
+
+.markmap g.markmap-node.advmm-selected > circle {
+  stroke: var(--interactive-accent);
+  stroke-width: 2.5;
+}
+
+.markmap g.markmap-node.advmm-selected .markmap-foreign > div > div {
+  background-color: var(--text-selection);
+  border-radius: var(--radius-s);
+  /* A spreading shadow (`0 0 0 Npx`) escapes the `foreignObject` clip and
+     paints square corners at high zoom; an inset shadow stays rounded. */
+  box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+.markmap g.markmap-node.advmm-dragging,
+.markmap g.markmap-node.advmm-cut {
+  opacity: 0.4;
+}
+
+/* Focus modes: keep the active focus set prominent and dim everything else,
+   including connector lines. Lowercase `f` uses the cursor's children;
+   uppercase `F` uses the cursor's siblings. */
+.advmm-editor-container.advmm-focus-mode .markmap-node {
+  opacity: 0.18;
+  transition: opacity 0.15s ease;
+}
+
+.advmm-editor-container.advmm-focus-mode .markmap-node.advmm-focus {
+  opacity: 1;
+}
+
+.advmm-editor-container.advmm-focus-mode .markmap-link {
+  opacity: 0.12;
+}
+
+.advmm-editor-container.advmm-focus-mode .markmap-link.advmm-focus-link {
+  opacity: 1;
+}
+
+.markmap g.markmap-node.advmm-dragging {
+  pointer-events: none;
+}
+
+.markmap g.markmap-node.advmm-drop-target > circle {
+  stroke: var(--interactive-accent);
+  stroke-width: 4;
+  fill: var(--interactive-accent);
+  filter: drop-shadow(0 0 5px var(--interactive-accent));
+  animation: advmm-drop-pulse 0.8s ease-in-out infinite;
+}
+
+.markmap g.markmap-node.advmm-drop-target .markmap-foreign > div > div {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-s);
+}
+
+@keyframes advmm-drop-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.advmm-editor-container.advmm-dragging,
+.advmm-editor-container.advmm-dragging * {
+  cursor: grabbing !important;
+}
+
+/* Resizing a node from its right edge: keep the resize cursor and never start
+   selecting text while the pointer moves. */
+.advmm-editor-container.advmm-resizing,
+.advmm-editor-container.advmm-resizing * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+/* Rubber-band selection box */
+.advmm-marquee {
+  position: fixed;
+  z-index: var(--layer-menu);
+  pointer-events: none;
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-l, 12px);
+  background-color: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+
+/* Insertion line shown while a node is dragged between two siblings. */
+.advmm-drop-line {
+  position: fixed;
+  z-index: var(--layer-menu);
+  pointer-events: none;
+  height: 3px;
+  border-radius: 2px;
+  background-color: var(--interactive-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 4px var(--interactive-accent);
+}
+
+.markmap path.markmap-link.advmm-drag-link {
+  pointer-events: none;
+}
+
+/* Mobile: let markmap handle pans/zooms itself instead of scrolling the view. */
+.markmap {
+  touch-action: none;
+}
+
+/* Mobile action bar */
+.advmm-editor-container {
+  position: relative;
+}
+
+/* `?` keyboard-shortcut overlay */
+
+.advmm-help-overlay {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
+  inset: 0;
+  z-index: var(--layer-modal, 100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-4-4, 16px);
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.advmm-help-overlay.advmm-hidden {
+  display: none;
+}
+
+.advmm-help-panel {
+  max-width: 560px;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--size-4-4, 16px) var(--size-4-5, 20px);
+  border-radius: var(--radius-l, 12px);
+  background-color: var(--background-primary);
+  box-shadow: var(--shadow-l);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.advmm-help-title {
+  margin-bottom: var(--size-4-3, 12px);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+
+.advmm-help-section + .advmm-help-section {
+  margin-top: var(--size-4-3, 12px);
+}
+
+.advmm-help-section-title {
+  margin-bottom: var(--size-2-3, 6px);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.advmm-help-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-4-3, 12px);
+  padding: 2px 0;
+}
+
+.advmm-help-keys {
+  flex: 0 0 auto;
+  min-width: 110px;
+  padding: 1px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
+.advmm-help-label {
+  color: var(--text-normal);
+}
+
+.advmm-help-close {
+  margin-top: var(--size-4-3, 12px);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
+.advmm-action-bar {
+  position: absolute;
+  z-index: var(--layer-menu);
+  display: flex;
+  gap: var(--size-2-1, 2px);
+  padding: var(--size-2-2, 4px);
+  border-radius: var(--radius-l, 12px);
+  background-color: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+}
+
+.advmm-action-bar.advmm-hidden {
+  display: none;
+}
+
+.advmm-action-top-left {
+  top: var(--size-4-3, 12px);
+  left: var(--size-4-3, 12px);
+}
+
+.advmm-action-top-right {
+  top: var(--size-4-3, 12px);
+  right: var(--size-4-3, 12px);
+}
+
+.advmm-action-node {
+  bottom: calc(var(--size-4-3, 12px) + env(safe-area-inset-bottom, 0px));
+  right: var(--size-4-3, 12px);
+  flex-direction: column;
+}
+
+.advmm-action-menu {
+  bottom: calc(var(--size-4-3, 12px) + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.advmm-action-bar .advmm-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-m, 8px);
+  background-color: transparent;
+  color: var(--text-normal);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.advmm-action-bar .advmm-action:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.advmm-action-bar .advmm-action:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.advmm-action-bar .advmm-action.advmm-action-active {
+  color: var(--interactive-accent);
+}
+
+/* `z` key hint overlay */
+.advmm-key-hint {
+  position: absolute;
+  z-index: var(--layer-menu);
+  bottom: calc(var(--size-4-3, 12px) + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--size-2-3, 6px) var(--size-4-2, 8px);
+  border-radius: var(--radius-m, 8px);
+  background-color: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  font-size: var(--font-ui-smaller, 12px);
+  pointer-events: none;
+}
+
+.advmm-key-hint.advmm-hidden {
+  display: none;
+}
+
+.advmm-key-hint-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+  white-space: nowrap;
+}
+
+.advmm-key-hint-row kbd {
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  text-align: center;
+}
+
+.advmm-key-hint-row span {
+  color: var(--text-muted);
+}
+
+/* Search bar (`/`) */
+.advmm-search-bar {
+  position: absolute;
+  z-index: var(--layer-menu);
+  top: var(--size-4-3, 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+  padding: var(--size-2-2, 4px) var(--size-4-2, 8px);
+  border-radius: var(--radius-m, 8px);
+  background-color: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+}
+
+.advmm-search-input {
+  width: 220px;
+  max-width: 50vw;
+  padding: var(--size-2-2, 4px) var(--size-2-3, 6px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small, 13px);
+}
+
+.advmm-search-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.advmm-search-count {
+  min-width: 2.5em;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller, 12px);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.advmm-search-hint {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller, 12px);
+  white-space: nowrap;
+}
+
+/* Every matching node. */
+.markmap g.markmap-node.advmm-search-hit > circle {
+  stroke: var(--text-highlight-bg);
+  stroke-width: 3;
+}
+
+.markmap g.markmap-node.advmm-search-hit .markmap-foreign > div > div {
+  background-color: var(--text-highlight-bg);
+  border-radius: var(--radius-s);
+}
+
+/* The match the search cursor is on: stronger and animated. */
+.markmap g.markmap-node.advmm-search-current > circle {
+  stroke: var(--interactive-accent);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 5px var(--interactive-accent));
+  animation: advmm-search-pulse 1s ease-in-out infinite;
+}
+
+.markmap g.markmap-node.advmm-search-current .markmap-foreign > div > div {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-s);
+}
+
+@keyframes advmm-search-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }

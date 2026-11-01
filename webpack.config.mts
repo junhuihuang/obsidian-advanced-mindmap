@@ -56,4 +56,4 @@ function getMode(mode: string) {
     throw 'Expected --mode development or production'
 }
 
-const testPluginRoute = 'test-vault/.obsidian/plugins/obsidian-mindmap-nextgen'
+const testPluginRoute = 'test-vault/.obsidian/plugins/advanced-mindmap'

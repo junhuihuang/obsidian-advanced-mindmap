@@ -14,7 +14,7 @@ export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
     super(app, plugin)
 
-    this.containerEl.addClass('mmng-settings-tab')
+    this.containerEl.addClass('advmm-settings-tab')
 
     const appendContent =
       PageSelector('global', {
@@ -38,7 +38,7 @@ export class FileSettingsDialog extends Modal {
   
     const fileSettings = createSettingsProxy('file', editor)
 
-    this.containerEl.classList.add('mmng-settings-modal')
+    this.containerEl.classList.add('advmm-settings-modal')
 
     const appendContent =
       PageSelector('file', {
@@ -64,7 +64,7 @@ export class CodeBlockSettingsDialog extends Modal {
       set: () => false
     })
 
-    this.containerEl.classList.add('mmng-settings-modal')
+    this.containerEl.classList.add('advmm-settings-modal')
 
     const appendContent =
       PageSelector('codeBlock', {

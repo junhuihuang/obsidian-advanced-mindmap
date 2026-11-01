@@ -1,5 +1,4 @@
 import autoBind from 'auto-bind'
-import { curry } from 'ramda'
 import { Merge } from 'type-fest'
 
 type Path<EventName> = [EventName, number]
@@ -15,7 +14,12 @@ export class LocalEvents<EventName extends string> {
     listeners.forEach(cb => cb(data))
   }
 
-  public listen = curry((name: EventName, callback: Function) => {
+  public listen(name: EventName, callback?: Function): any {
+    // Curry: with one argument returns a function that takes the callback;
+    // with two arguments registers the callback directly.
+    if (callback === undefined) {
+      return (cb: Function) => this.listen(name, cb)
+    }
     const path: Path<EventName> =
       [name, this.listeners?.[name]?.length ?? 0]
 
@@ -25,7 +29,7 @@ export class LocalEvents<EventName extends string> {
       this.listeners[name] = [callback]
 
     return this.unlisten(path)
-  })
+  }
 
   private unlisten([name, index]: Path<EventName>) {
     return () => { delete this.listeners[name][index] }
@@ -54,23 +58,6 @@ if (!Promise.withResolvers)
 
 export const nextTick = () => Promise.resolve()
 
-export function* genLog<T>(message: string, generator: Generator<T>) {
-  let count = 0
-  for (const x of generator) {
-    console.info(message, count, x)
-    count++
-    yield x
-  }
-}
-
-// Map constructor that binds all methods to the instance
-export class Map<K, V> extends globalThis.Map<K, V> {
-  constructor(entries?: readonly (readonly [K, V])[] | null) {
-    super(entries)
-    autoBind(this)
-  }
-}
-
 export const isObjectEmpty = (object: Object) =>
   Object.keys(object).length === 0
 
@@ -93,37 +80,10 @@ export function assert<In, Out extends In>(
     throw new Error(message ?? predicate.message ?? predicate.toString())
 }
 
-export const toAssert = <In, Out extends In>(
-  predicate: AssertPredicate<In, Out>,
-  message?: string
-) => (
-  x: In,
-  message_?: string
-) => assert(predicate, x, message ?? message_)
-
 export const notNullish = Object.assign(
   <T>(x: T): x is NonNullable<T> => x !== null && x !== undefined,
   { message: 'Must not be null or undefined' }
 )
-
-export const defineLazyGetter = <
-  Obj extends object,
-  Key extends string | number | symbol,
-  Value
->(
-  obj: Obj,
-  key: Key,
-  getter: () => Value
-): Merge<Obj, { [P in Key]: Value }> =>
-  Object.defineProperty(obj, key, {
-    configurable: true,
-    enumerable: true,
-    get() {
-      const value = getter()
-      Object.defineProperty(obj, key, { value, writable: false, enumerable: true })
-      return value
-    }
-  }) as any
 
 export const defineLazyGetters = <
   Obj extends object,
@@ -133,6 +93,14 @@ export const defineLazyGetters = <
   getters: Getters
 ): Merge<Obj, { [K in keyof Getters]: ReturnType<Getters[K]> }> => {
   for (const key in getters)
-    defineLazyGetter(obj, key, getters[key])
+    Object.defineProperty(obj, key, {
+      configurable: true,
+      enumerable: true,
+      get() {
+        const value = getters[key]()
+        Object.defineProperty(obj, key, { value, writable: false, enumerable: true })
+        return value
+      }
+    })
   return obj as any
 }

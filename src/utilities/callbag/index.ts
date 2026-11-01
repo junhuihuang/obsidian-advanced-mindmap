@@ -6,29 +6,23 @@ import fromEvent from 'callbag-from-event'
 import fromPromise from 'callbag-from-promise'
 import map from 'callbag-map'
 import merge from 'callbag-merge'
-import of from 'callbag-of'
-import pairwise from 'callbag-pairwise'
 import partition from 'callbag-partition'
 import pipe from 'callbag-pipe'
 import reject from 'callbag-reject'
 import remember from 'callbag-remember'
 import scan from 'callbag-scan'
 import share from 'callbag-share'
-import startWith from 'callbag-start-with'
 import subscribe from 'callbag-subscribe'
-import take from 'callbag-take'
 import takeUntil from 'callbag-take-until'
 import { debounce } from 'callbag-debounce'
 
 import { Source, UnwrapSource } from 'callbag'
 import { subject, Subject } from './subject'
-import { completeWhen } from './complete-when'
 import { tap } from './tap'
 import { preventDefault } from './prevent-default'
 import { dragAndDrop } from './drag-and-drop'
 import { fromCommand } from './from-command'
 import { fromObsidianEvent } from './from-obsidian-event'
-import { groupBy } from './group-by'
 
 
 export type Listener<T> = (data: T) => any
@@ -42,7 +36,6 @@ const subscribe2 = <T>(source: Source<T>, listener: Listener<T> | Subscriber<T>)
 
 const Callbag = {
   create,
-  completeWhen,
   debounce,
   distinct,
   dragAndDrop,
@@ -52,11 +45,8 @@ const Callbag = {
   fromEvent,
   fromObsidianEvent,
   fromPromise,
-  groupBy,
   map,
   merge,
-  of,
-  pairwise,
   partition,
   pipe,
   preventDefault,
@@ -64,17 +54,14 @@ const Callbag = {
   remember,
   scan,
   share,
-  startWith,
   subject,
   subscribe: subscribe2,
-  take,
   takeUntil,
   tap,
 }
 
 export {
   create,
-  completeWhen,
   debounce,
   distinct,
   dragAndDrop,
@@ -84,11 +71,8 @@ export {
   fromEvent,
   fromObsidianEvent,
   fromPromise,
-  groupBy,
   map,
   merge,
-  of,
-  pairwise,
   partition,
   pipe,
   preventDefault,
@@ -96,10 +80,8 @@ export {
   remember,
   scan,
   share,
-  startWith,
   subject,
   subscribe,
-  take,
   takeUntil,
   tap,
 }
