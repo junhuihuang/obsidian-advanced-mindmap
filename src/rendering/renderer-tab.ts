@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { IMarkmapOptions } from 'markmap-view'
 import { TFile, WorkspaceLeaf } from 'obsidian'
 
@@ -62,7 +63,7 @@ export function TabRenderer(containerEl: MindmapTab.View['containerEl'], leaf: W
     leaf,
     getFile: () => currentFile,
     onChange: open => markdownSourceListener(open),
-    workspace: app.workspace,
+    workspace: getApp().workspace,
   })
 
   return { collapseAll, firstRender, render, focus: editor.focus, destroy,
@@ -121,7 +122,7 @@ export function TabRenderer(containerEl: MindmapTab.View['containerEl'], leaf: W
 
     const revision = sourceRevision
     const markdown = content ?? (currentFile === file && pendingWrites > 0
-      ? state.markdown : await app.vault.cachedRead(file))
+      ? state.markdown : await getApp().vault.cachedRead(file))
     if (destroyed || revision !== sourceRevision) return
     currentFile = file
     state.markdown = markdown
@@ -161,7 +162,7 @@ export function TabRenderer(containerEl: MindmapTab.View['containerEl'], leaf: W
 
   /** Queues a disk write so a slow save can never clobber a newer one. */
   function scheduleWrite(file: TFile, markdown: string): Promise<void> {
-    const next = writeQueue.then(() => app.vault.modify(file, markdown))
+    const next = writeQueue.then(() => getApp().vault.modify(file, markdown))
     writeQueue = next.catch(() => undefined)
     pendingWrites++
     return next.finally(() => { pendingWrites-- })

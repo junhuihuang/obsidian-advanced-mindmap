@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   workspaceOn: vi.fn(() => ({})),
   workspaceOffref: vi.fn(),
 }))
+vi.mock('src/core/app', () => ({ getApp: () => (globalThis as any).app }))
 vi.mock('src/settings/filesystem', () => ({ globalSettings: mocks.settings, nodeWidthsFor: () => ({}), saveNodeWidth: () => false }))
 vi.mock('src/rendering/screenshot', () => ({ takeScreenshot: vi.fn() }))
 vi.mock('./renderer-common', () => ({

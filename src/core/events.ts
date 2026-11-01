@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import Callbag, { debounce, distinct, filter, flatMap, fromPromise, map, merge, partition, remember } from 'src/utilities/callbag'
 import { plugin } from './main'
 import { layoutManager } from 'src/views/layout-manager'
@@ -12,7 +13,7 @@ export const start = Callbag.create<void>(
   (next, error, complete) => { next(); complete() })
 
 const layoutReady = new Promise<void>(resolve =>
-  app.workspace.onLayoutReady(resolve))
+  getApp().workspace.onLayoutReady(resolve))
 
 const advmmLayoutReady = layoutReady.then(layoutManager.deserialise)
 
@@ -20,12 +21,12 @@ export const layoutChange = Callbag.pipe(
   fromPromise(advmmLayoutReady),
   flatMap(() => Callbag.create<void>((next, error, complete) => {
     next()
-    plugin.registerEvent(app.workspace.on('layout-change', next))
+    plugin.registerEvent(getApp().workspace.on('layout-change', next))
     plugin.register(complete)
   }))
 )
 
-export const cssChange = fromObsidianEvent(app.workspace, 'css-change').void()
+export const cssChange = fromObsidianEvent(getApp().workspace, 'css-change').void()
 
 export const isDarkMode = Callbag.pipe(
   merge(start, cssChange),
@@ -34,10 +35,10 @@ export const isDarkMode = Callbag.pipe(
   remember
 )
 
-export const fileOpen = fromObsidianEvent(app.workspace, 'file-open').unary()
-export const fileRenamed = fromObsidianEvent(app.vault, 'rename').unary()
+export const fileOpen = fromObsidianEvent(getApp().workspace, 'file-open').unary()
+export const fileRenamed = fromObsidianEvent(getApp().vault, 'rename').unary()
 export const fileChanged = Callbag.pipe(
-  fromObsidianEvent(app.workspace, 'editor-change').object('editor', 'info'),
+  fromObsidianEvent(getApp().workspace, 'editor-change').object('editor', 'info'),
   debounce(300)
 )
 

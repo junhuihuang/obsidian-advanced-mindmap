@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import type { WorkspaceSplit, WorkspaceTabs, WorkspaceLeaf, TFile } from 'obsidian'
 import { MM_VIEW_TYPE } from 'src/constants'
 import { leafManager } from './leaf-manager'
@@ -23,9 +24,9 @@ type FlatSubject =
 | { type: 'pinned', path: TFile['path'] }
 
 export const layoutManager = {
-  serialise: () => layout.save({ version: 1, root: serialise(app.workspace.rootSplit) }),
+  serialise: () => layout.save({ version: 1, root: serialise(getApp().workspace.rootSplit) }),
   deserialise,
-  renderVisible: () => renderVisible(app.workspace.rootSplit),
+  renderVisible: () => renderVisible(getApp().workspace.rootSplit),
 }
 
 function serialise(node: Node): any {
@@ -57,8 +58,8 @@ function renderVisible(node: Branch) {
 
 async function deserialise() {
   const saved = layout.load()
-  const root = app.workspace.rootSplit
-  const activeTabs = app.workspace.activeTabGroup
+  const root = getApp().workspace.rootSplit
+  const activeTabs = getApp().workspace.activeTabGroup
 
   async function restore(tree: Tree, node: Branch | undefined): Promise<void> {
     if (!node) return
@@ -80,12 +81,12 @@ async function deserialise() {
       if (!subject || !leaves[index]) continue
       const file = subject.type === 'unpinned'
         ? 'unpinned'
-        : app.vault.getMarkdownFiles().find(file => file.path === subject.path)
+        : getApp().vault.getMarkdownFiles().find(file => file.path === subject.path)
       if (file) await leafManager.replace(leaves[index], file)
     }
     const current = tabs.children[currentIndex]
     if (current) {
-      app.workspace.setActiveLeaf(current)
+      getApp().workspace.setActiveLeaf(current)
       renderLeaf(current)
     }
   }
@@ -100,6 +101,6 @@ async function deserialise() {
   }
 
   const activeLeaf = activeTabs?.children[activeTabs.currentTab]
-  if (activeLeaf) app.workspace.setActiveLeaf(activeLeaf)
+  if (activeLeaf) getApp().workspace.setActiveLeaf(activeLeaf)
   LoadingView.closeAll()
 }

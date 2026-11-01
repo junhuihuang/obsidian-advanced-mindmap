@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { WorkspaceLeaf } from 'obsidian'
 import { MindmapSubject } from './layout-manager'
 import views from './views'
@@ -10,7 +11,7 @@ export const leafManager = {
   replace,
   new(subject: MindmapSubject) {
     // Open in a new tab rather than splitting the pane.
-    const leaf = app.workspace.getLeaf('tab')
+    const leaf = getApp().workspace.getLeaf('tab')
     constructView(leaf, subject)
   },
 }
@@ -20,7 +21,7 @@ async function replace(remove: MindmapSubject | WorkspaceLeaf, add: MindmapSubje
   const tabGroup = leafToRemove.parent
   const index = tabGroup.children.indexOf(leafToRemove)
 
-  const newLeaf = app.workspace.createLeafInParent(tabGroup, index)
+  const newLeaf = getApp().workspace.createLeafInParent(tabGroup, index)
 
   await constructView(newLeaf, add)
   leafToRemove.detach()
@@ -37,5 +38,5 @@ function close(subject: MindmapSubject) {
 
 function reveal(subject: MindmapSubject) {
   const view = views.get(subject)!
-  app.workspace.setActiveLeaf(view.leaf)
+  getApp().workspace.setActiveLeaf(view.leaf)
 }

@@ -9,6 +9,17 @@ export type TreeEdit = { type: 'insert' | 'setText' | 'remove'; path: number[] }
 export type TreeChangeListener = (before: string, after: string, edits: TreeEdit[]) => void
 
 /**
+ * Turns one node's HTML (markmap renders node content to HTML) into DOM nodes.
+ *
+ * `DOMParser` builds an inert document, so no script or handler in the markup
+ * starts while the label is updated in place.
+ */
+function parseContent(html: string): Node[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return Array.from(doc.body.childNodes)
+}
+
+/**
  * Reuses markmap data objects and D3 keys for editor-originated insertions and
  * renames. Only new labels enter the DOM; unchanged foreignObjects are retained.
  * Markmap still lays out visible nodes, since adding a row can move its neighbours.
@@ -117,7 +128,7 @@ function reconcile(markmap: Markmap, fresh: IPureNode, edits: TreeEdit[]) {
       // renderData creates HTML only for entering nodes. Update this one label
       // in place, preserving its observed content element and all other labels.
       const label = group?.querySelector('foreignObject')?.firstElementChild?.firstElementChild
-      if (label) label.innerHTML = node.content
+      if (label) label.replaceChildren(...parseContent(node.content))
     }
     result.content = node.content
     result.payload = { ...node.payload, ...(old ? { fold: old.payload?.fold ?? 0 } : {}) }

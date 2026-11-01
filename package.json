@@ -1,6 +1,6 @@
 {
   "name": "obsidian-advanced-mindmap",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Edit your Markdown notes as an interactive mindmap",
   "scripts": {
     "dev": "webpack --mode development --watch",

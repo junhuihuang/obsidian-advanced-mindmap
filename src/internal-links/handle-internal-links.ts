@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { Component, TFile } from 'obsidian'
 import { plugin } from 'src/core/main'
 
@@ -37,7 +38,7 @@ registerEvent('click', ({ event, parentMindmap, href }) => {
   event.preventDefault()
 
   const { path } = svgs.get(parentMindmap)!
-  app.workspace.openLinkText(href, path)
+  getApp().workspace.openLinkText(href, path)
 })
 
 plugin.registerHoverLinkSource('advanced-mindmap', {
@@ -46,7 +47,7 @@ plugin.registerHoverLinkSource('advanced-mindmap', {
 })
 
 registerEvent('mouseover', ({ event, target, parentMindmap, href }) => {
-  app.workspace.trigger('hover-link', {
+  getApp().workspace.trigger('hover-link', {
     event,
     source: 'advanced-mindmap',
     hoverParent: parentMindmap,

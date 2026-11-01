@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { ITransformPlugin } from 'markmap-lib'
 import { EmbedInfo, MarkdownRenderer, parseLinktext, TFile } from 'obsidian'
 
@@ -76,7 +77,7 @@ class EmbedElement extends HTMLElement {
 
     deleteText(embedContainer)
 
-    const file = app.metadataCache.getFirstLinkpathDest(path, sourcePath)
+    const file = getApp().metadataCache.getFirstLinkpathDest(path, sourcePath)
     if (!(file instanceof TFile)) {
       const el = createDiv('file-not-found')
       el.innerText = `File not found: ${path}`
@@ -91,7 +92,7 @@ class EmbedElement extends HTMLElement {
     }
 
     const embedInfo: EmbedInfo = {
-      app,
+      app: getApp(),
       containerEl: embedContainer as HTMLDivElement,
       depth: 1,
       displayMode: false,
@@ -99,7 +100,7 @@ class EmbedElement extends HTMLElement {
       showInline: false,
       sourcePath
     }
-    const embedCreator = app.embedRegistry.embedByExtension[file.extension]
+    const embedCreator = getApp().embedRegistry.embedByExtension[file.extension]
     const embedComponent = embedCreator(embedInfo, file, subpath)
     embedComponent.loadFile()
 	}

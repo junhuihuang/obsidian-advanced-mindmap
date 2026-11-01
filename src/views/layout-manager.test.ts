@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   activeFile: { path: 'active.md', basename: 'active' },
 }))
 
+vi.mock('src/core/app', () => ({ getApp: () => (globalThis as any).app }))
 vi.mock('obsidian', () => ({ WorkspaceSplit: class {}, WorkspaceTabs: class {}, WorkspaceLeaf: class {}, TFile: class {} }))
 vi.mock('./view', () => ({ default: class MindmapView {
   firstRender = vi.fn()

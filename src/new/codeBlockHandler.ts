@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownSectionInformation, MarkdownView } from 'obsidian'
 import { plugin } from 'src/core/main'
 import Callbag, { flatMap } from 'src/utilities/callbag'
@@ -49,7 +50,7 @@ export const getCodeBlocksByPath = (filePath: string) =>
 type SectionInfo = Simplify<MarkdownSectionInformation>
 
 function getMarkdownView(component: MarkdownRenderChild) {
-  const leaves = app.workspace.getLeavesOfType('markdown')
+  const leaves = getApp().workspace.getLeavesOfType('markdown')
   const leaf = leaves.find(leaf => {
     const view = leaf.view
     if (!(view instanceof MarkdownView)) return
@@ -62,7 +63,7 @@ function getMarkdownView(component: MarkdownRenderChild) {
 }
 
 function getFileByPath(sourcePath: string) {
-  const file = app.vault.getFileByPath(sourcePath)
+  const file = getApp().vault.getFileByPath(sourcePath)
   assert(notNullish, file)
   return file
 }

@@ -1,3 +1,4 @@
+import { getApp } from 'src/core/app'
 import { ViewCreator, WorkspaceLeaf } from 'obsidian'
 import { MM_VIEW_TYPE } from 'src/constants'
 import { MindmapSubject } from './layout-manager'
@@ -39,10 +40,10 @@ function enqueue(onfulfilled: () => Promise<void>) {
 const waitUntilActive = (leaf: WorkspaceLeaf) =>
   new Promise<void>(resolve => {
     const listener =
-      app.workspace.on('active-leaf-change', activeLeaf => {
+      getApp().workspace.on('active-leaf-change', activeLeaf => {
         if (activeLeaf === leaf) {
           resolve()
-          app.workspace.offref(listener)
+          getApp().workspace.offref(listener)
         }
       })
     plugin.registerEvent(listener)

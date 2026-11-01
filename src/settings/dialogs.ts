@@ -12,7 +12,7 @@ import { createSettingsProxy } from './proxy'
 
 export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
-    super(app, plugin)
+    super(plugin.app, plugin)
 
     this.containerEl.addClass('advmm-settings-tab')
 
@@ -34,7 +34,7 @@ export class GlobalSettingsDialog extends PluginSettingTab {
 
 export class FileSettingsDialog extends Modal {
   constructor(editor: Editor) {
-    super(app)
+    super(plugin.app)
   
     const fileSettings = createSettingsProxy('file', editor)
 
@@ -54,7 +54,7 @@ export class FileSettingsDialog extends Modal {
 
 export class CodeBlockSettingsDialog extends Modal {
   constructor(fileSettings: Partial<FileSettings>, codeBlockSettings: Partial<CodeBlockSettings>) {
-    super(app)
+    super(plugin.app)
     autoBind(this)
 
     const inheritSettings = new Proxy({} as GlobalSettings, {
