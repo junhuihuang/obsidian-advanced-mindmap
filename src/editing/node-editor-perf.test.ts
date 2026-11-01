@@ -92,14 +92,23 @@ describe('adding a node', () => {
   })
 
   it('stays fast as the mindmap grows', () => {
+    // Measured against the same edit on a fifth of the nodes rather than
+    // against a millisecond budget: an absolute budget only says how fast the
+    // machine is (a loaded CI runner pushed this over 20 ms while the ratio
+    // stayed at ~1.4), while the ratio is what this test is about. Adding a
+    // node used to walk every one of the 2001 rendered nodes a dozen times,
+    // which no amount of machine speed hides.
+    const small = createPerfHarness(largeDocument(SMALL))
+    const smallPath = small.middlePath()
+    const smallAverage = timeAverage(() => addChild(small, smallPath), 5)
+    small.destroy()
+
     const h = createPerfHarness(largeDocument(BIG))
     harness = h
     const path = h.middlePath()
     const average = timeAverage(() => addChild(h, path), 10)
-    // Adding a node used to walk every one of the 2001 rendered nodes a dozen
-    // times. The budget is generous on purpose: most of what is left is jsdom's
-    // own cost for the click, the layout reads and the textarea.
-    expect(average).toBeLessThan(20)
+    // The floor keeps a very fast machine from turning jitter into a failure.
+    expect(average).toBeLessThan(Math.max(smallAverage * 3, 8))
     // The editor the previous iteration opened is dropped when the next one
     // takes focus, so exactly the last one is left.
     expect(editorCount()).toBe(1)
