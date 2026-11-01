@@ -88,7 +88,7 @@ function restoreSvgDom(themeColors: ScreenshotColors, markmap: Markmap) {
 function copyImageToClipboard(pngDataUrl: string) {
   const blob = dataURItoBlob(pngDataUrl)
 
-  navigator.clipboard
+  void navigator.clipboard
     .write([new ClipboardItem({ 'image/png': blob })])
     .then(() => {
       new Notice('Image copied to clipboard')

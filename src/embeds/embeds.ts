@@ -1,8 +1,7 @@
 import { getApp } from 'src/core/app'
 import { ITransformPlugin } from 'markmap-lib'
-import { EmbedInfo, MarkdownRenderer, parseLinktext, TFile } from 'obsidian'
+import { Component, EmbedInfo, MarkdownRenderer, parseLinktext, TFile } from 'obsidian'
 
-import { plugin } from 'src/core/main'
 import { getActiveFile } from 'src/views/get-active-file'
 import MindmapView from 'src/views/view'
 import views from 'src/views/views'
@@ -59,6 +58,13 @@ function parseMain(str: string) {
 
 class EmbedElement extends HTMLElement {
   static observedAttributes = ['linkText']
+  /**
+   * Lifetime of the rendered markdown. It is tied to this element, which is
+   * replaced by the render output right away, rather than to the plugin: a
+   * component that lives as long as the app would keep every embed's handlers
+   * alive.
+   */
+  private readonly component = new Component()
 
 	async connectedCallback() {
     const linkText = this.getAttribute('linkText')
@@ -66,7 +72,8 @@ class EmbedElement extends HTMLElement {
 
     const sourcePath = getSourcePath(this)
 
-    await MarkdownRenderer.renderMarkdown(`![[${linkText}]]`, this, sourcePath, plugin)
+    this.component.load()
+    await MarkdownRenderer.render(getApp(), `![[${linkText}]]`, this, sourcePath, this.component)
 
     // replace custom element with render output
     const embedContainer = this.children[0].children[0]

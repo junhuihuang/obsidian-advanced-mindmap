@@ -84,7 +84,7 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
 
   // This relies on firstRender having already happened, so state.markmapOptions is set.
   function collapseAll() {
-    markmap.setData(markmap.state.data, {
+    void markmap.setData(markmap.state.data, {
       ...state.markmapOptions,
       initialExpandLevel: 0,
     })
@@ -95,7 +95,7 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     state.hasRendered = true
     await render(file)
     if (destroyed) return
-    markmap.fit()
+    void markmap.fit()
     // Focus the editor so keyboard navigation works without clicking first.
     editor.focus()
   }

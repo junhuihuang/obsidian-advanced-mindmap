@@ -19,7 +19,7 @@ export class LoadingView extends ItemView {
   }
 
   public async onClose() {
-    delete LoadingView.instances[LoadingView.instances.indexOf(this)]
+    LoadingView.instances = LoadingView.instances.filter(instance => instance !== this)
   }
 
   public static isLoadingView(x: unknown): x is LoadingView {

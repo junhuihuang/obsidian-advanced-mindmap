@@ -6,14 +6,15 @@ type Path<EventName> = [EventName, number]
 type Listener = (data: never) => unknown
 
 export class LocalEvents<EventName extends string> {
-  private listeners: Record<string, Listener[]> = {}
+  /** Listener slots: `undefined` marks one that has been unsubscribed. */
+  private listeners: Record<string, (Listener | undefined)[]> = {}
 
   constructor() { autoBind(this) }
 
   public emit(name: EventName, data?: unknown) {
     const listeners = this.listeners[name]
     if (!listeners) return
-    listeners.forEach(cb => (cb as (data?: unknown) => void)(data))
+    listeners.forEach(cb => cb?.((data) as never))
   }
 
   public listen(name: EventName): (callback: Listener) => () => void
@@ -36,7 +37,14 @@ export class LocalEvents<EventName extends string> {
   }
 
   private unlisten([name, index]: Path<EventName>) {
-    return () => { delete this.listeners[name][index] }
+    return () => {
+      const listeners = this.listeners[name]
+      if (!listeners) return
+      // Clear the slot instead of splicing: other subscriptions hold indices
+      // into this array, so removing an entry would shift them.
+      listeners[index] = undefined
+      if (listeners.every(listener => listener === undefined)) delete this.listeners[name]
+    }
   }
 }
 
@@ -68,7 +76,10 @@ export const isObjectEmpty = (object: object) =>
 
 export const iife = <Return>(fn: () => Return) => fn()
 
-export function Resolve<T>(fn: (resolve: (v: T) => void) => void): T {
+// `unknown` rather than `void` for the callback's return: several call sites
+// are one-expression arrows returning a builder, and a `void` return makes them
+// look like they might hand back a promise.
+export function Resolve<T>(fn: (resolve: (v: T) => void) => unknown): T {
   let result!: T
   const resolve = (v: T) => result = v
   fn(resolve)

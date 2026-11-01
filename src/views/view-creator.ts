@@ -26,7 +26,7 @@ export function constructView(leaf: WorkspaceLeaf, subject: MindmapSubject) {
     const view = leaf.view as MindmapView
     const file = pinned ? subject : getActiveFile()
 
-    waitUntilActive(leaf)
+    void waitUntilActive(leaf)
     .then(() =>
       file && view.firstRender(file))
   })

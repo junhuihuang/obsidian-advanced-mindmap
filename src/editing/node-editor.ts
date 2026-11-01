@@ -356,7 +356,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
 
     const target = event.target
     const group = target instanceof Element
-      ? target.closest('g.markmap-node') as SVGGElement | null
+      ? target.closest<SVGGElement>('g.markmap-node')
       : null
     const path = group ? sourcePathOf(group) ?? null : null
 
@@ -454,7 +454,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     // Hint that the selected node's right edge can be dragged. Written only
     // when the state changes so a plain mouse move never touches the DOM.
     if (event.buttons === 0 && event.target instanceof Element) {
-      const group = event.target.closest('g.markmap-node') as SVGGElement | null
+      const group = event.target.closest<SVGGElement>('g.markmap-node')
       const path = group ? sourcePathOf(group) : undefined
       const overHandle = !!group && !!path && resizeHandleAt(group, path, event.clientX, event.clientY)
       const cursor = overHandle ? 'ew-resize' : ''
@@ -1880,7 +1880,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       // `zC` mirrors `zo`: fold one level of the selected node's subtree, or of
       // the whole tree (the root's subtree) when nothing is selected.
       case 'foldLevel':
-        void runFoldCommand('foldLevel', data as unknown as FoldNode | undefined)
+        void runFoldCommand('foldLevel', data)
         return
       case 'unfold':
         if (hasSelection) void revealSelectedOneLevel()
@@ -1927,9 +1927,9 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   function recenterAfterFold() {
     const duration = getAnimationDuration?.() ?? 500
     if (duration <= 0) {
-      fitContent?.()
+      void fitContent?.()
     } else {
-      window.setTimeout(() => fitContent?.(), duration)
+      window.setTimeout(() => { void fitContent?.() }, duration)
     }
   }
 
@@ -2163,7 +2163,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
 
     let node: FoldNode | undefined = root
     for (let i = 0; i < path.length; i++) {
-      const child = node?.children?.[path[i]] as FoldNode | undefined
+      const child: FoldNode | undefined = node?.children?.[path[i]]
       if (!child) return
 
       // Reveal a parent whose children are hidden; the match itself only needs
@@ -2308,7 +2308,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
 
     // Progressive: each `zo` walks one level deeper instead of opening the
     // whole subtree at once.
-    const plan = revealNextLevelPlan(data as unknown as FoldNode)
+    const plan = revealNextLevelPlan(data)
     if (!plan.fold.length && !plan.unfold.length) return
 
     if (applyFoldPlan) {

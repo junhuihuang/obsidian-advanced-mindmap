@@ -1,17 +1,33 @@
 import stylistic from '@stylistic/eslint-plugin'
-import parserTs from '@typescript-eslint/parser'
 import obsidianmd from 'eslint-plugin-obsidianmd'
-import tseslint from 'typescript-eslint'
 
+/**
+ * The rules Obsidian applies when reviewing a community plugin.
+ *
+ * `obsidianmd.configs.recommended` is the review's own configuration: the
+ * `obsidianmd/*` rules, `eslint-comments/*`, and typescript-eslint's
+ * `recommendedTypeChecked` for type-aware checks. Running it here means a
+ * commit sees the same findings as the review form, instead of rediscovering
+ * them a week later.
+ */
 export default [
   {
     ignores: ['main.js', 'test-vault/**']
   },
+  ...obsidianmd.configs.recommended,
   {
-    files: ['**/*.ts', '*.js'],
+    // The review harness supplies these itself; type-aware rules need them.
+    files: ['**/*.{ts,mts}'],
     languageOptions: {
-      parser: parserTs,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
+  },
+  {
+    // Project style, which the review does not care about.
+    files: ['**/*.ts', '*.js'],
     plugins: {
       '@stylistic': stylistic
     },
@@ -24,39 +40,34 @@ export default [
     }
   },
   {
-    // The rules Obsidian applies when reviewing a community plugin.
-    files: ['src/**/*.ts'],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    plugins: {
-      obsidianmd,
-      '@typescript-eslint': tseslint.plugin,
-    },
+    // Deliberately not implementing the declarative settings API: Obsidian
+    // renders that list *instead of* a custom `display()`, and this tab is a
+    // paginated layout with inherited per-file values and a live preview.
+    files: ['src/settings/dialogs.ts'],
     rules: {
-      'obsidianmd/no-static-styles-assignment': 'error',
-      'obsidianmd/no-forbidden-elements': 'error',
-      'obsidianmd/prefer-instanceof': 'warn',
-      'obsidianmd/prefer-create-el': 'warn',
-      'obsidianmd/prefer-window-timers': 'warn',
-      'obsidianmd/no-global-this': 'warn',
-      // Deliberately not implementing the declarative settings API: Obsidian
-      // renders that list *instead of* a custom `display()`, and this tab is a
-      // paginated layout with inherited per-file values and a live preview.
       'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
-      'no-useless-escape': 'warn',
-      'no-var': 'warn',
-      'no-unused-expressions': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unsafe-function-type': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-empty-object-type': 'warn',
-      '@typescript-eslint/no-wrapper-object-types': 'warn',
-      '@typescript-eslint/no-namespace': 'warn',
+      '@typescript-eslint/no-deprecated': 'off',
+    },
+  },
+  {
+    // These files implement or drive Obsidian's DOM helpers, so they have to
+    // reach for the native API the rules point away from. `createElement` and
+    // `querySelectorAll` are reported as deprecated because one overload each
+    // is marked deprecated (the deprecated HTML tags, e.g. `<marquee>`); the
+    // signatures used here are the current ones.
+    files: ['src/test-utils/dom-helpers.ts', 'src/test-utils/perf-harness.ts'],
+    rules: {
+      '@typescript-eslint/no-deprecated': 'off',
+    },
+  },
+  {
+    // Build and test-runner scripts, which are Node programs rather than
+    // plugin code: `node:fs` is the point of them, and the vault path they
+    // touch belongs to this repository, not to the user's vault.
+    files: ['webpack.config.mts', 'vitest.config.ts'],
+    rules: {
+      'obsidianmd/no-nodejs-modules': 'off',
+      'obsidianmd/hardcoded-config-path': 'off',
     },
   },
   {
@@ -69,10 +80,31 @@ export default [
       'obsidianmd/prefer-window-timers': 'off',
       'obsidianmd/prefer-instanceof': 'off',
       'obsidianmd/no-global-this': 'off',
+      'obsidianmd/ui/sentence-case': 'off',
+      'obsidianmd/no-tfile-tfolder-cast': 'off',
+      'obsidianmd/no-nodejs-modules': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      // `closest()` and `querySelector()` infer their element type from the
+      // assertion, so the rule calls an assertion that carries the type
+      // "unnecessary" while removing it changes the type to `Element`.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       'no-var': 'off',
       'no-unused-expressions': 'off',
+    },
+  },
+  {
+    // `.d.ts` files describe an environment, so `no-undef` (which cannot see
+    // ambient declarations) reports every type they declare.
+    files: ['**/*.d.ts'],
+    rules: {
+      'no-undef': 'off',
     },
   },
 ]

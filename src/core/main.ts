@@ -5,9 +5,9 @@ import { iife } from 'src/utilities/utilities'
 
 export const plugin = __entry.plugin
 
-iife(async () => {
-  import('./events')
-  import('src/internal-links/handle-internal-links')
+void iife(async () => {
+  void import('./events')
+  void import('src/internal-links/handle-internal-links')
   await import('src/new/file-settings-button')
   const { settingsLoaded } = await import('src/settings/filesystem')
   await settingsLoaded

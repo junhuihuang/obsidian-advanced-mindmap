@@ -50,7 +50,7 @@ export const SettingComponent = (options: SettingOptions) => {
 
     if (controlType === 'numberText') {
       const oldControl = control
-      const newControl: ControlComponent<number> = Object.create(control)
+      const newControl = Object.create(control) as ControlComponent<number>
       newControl.onChange = (listener: (n: number) => unknown) => {
         oldControl.onChange(value => listener(Number.parseInt(String(value))))
         return newControl

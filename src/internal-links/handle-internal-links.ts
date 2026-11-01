@@ -38,7 +38,7 @@ registerEvent('click', ({ event, parentMindmap, href }) => {
   event.preventDefault()
 
   const { path } = svgs.get(parentMindmap)!
-  getApp().workspace.openLinkText(href, path)
+  void getApp().workspace.openLinkText(href, path)
 })
 
 plugin.registerHoverLinkSource('advanced-mindmap', {

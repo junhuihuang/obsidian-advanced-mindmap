@@ -12,7 +12,7 @@ export const leafManager = {
   new(subject: MindmapSubject) {
     // Open in a new tab rather than splitting the pane.
     const leaf = getApp().workspace.getLeaf('tab')
-    constructView(leaf, subject)
+    void constructView(leaf, subject)
   },
 }
 

@@ -8,13 +8,13 @@ export function findNodeGroup(target: EventTarget | null): SVGGElement | null {
   if (!(target instanceof Element)) return null
   const foreign = target.closest('.markmap-foreign')
   if (!foreign) return null
-  return foreign.closest('g.markmap-node') as SVGGElement | null
+  return foreign.closest<SVGGElement>('g.markmap-node')
 }
 
 /** Like `findNodeGroup` but also matches the fold circles. */
 export function findAnyNodeGroup(target: EventTarget | null): SVGGElement | null {
   if (!(target instanceof Element)) return null
-  return target.closest('g.markmap-node') as SVGGElement | null
+  return target.closest<SVGGElement>('g.markmap-node')
 }
 
 export function sameDropTarget(a: DropTarget | null, b: DropTarget | null): boolean {

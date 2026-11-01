@@ -68,8 +68,7 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
     containerEl.parentElement?.classList.remove(cssClasses.markmapEmbed)
   })
 
-  render().then(() =>
-    markmap.fit())
+  void render().then(() => markmap.fit())
 
   Callbag.subscribe(renderCodeblocks$, render)
 
@@ -210,7 +209,7 @@ function SizeManager(containerEl: CodeBlock['containerEl'], svg: SVGSVGElement, 
     svg.setCssStyles({ height: settings.height + 'px' })
   })
 
-  Callbag.subscribe(fromEvent(document, 'mouseup'), settings.saveHeight)
+  Callbag.subscribe(fromEvent(document, 'mouseup'), () => settings.saveHeight())
 }
 
 function SettingsDialog(codeBlock: CodeBlock, codeBlockSettings: CodeBlockSettings, fileSettings: FileSettings, editor: Editor) {

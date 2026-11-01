@@ -22,18 +22,22 @@ vi.mock('./view-creator', () => ({ constructView: vi.fn() }))
 vi.mock('./get-active-file', () => ({ getActiveFile: () => mocks.activeFile }))
 vi.mock('src/settings/filesystem', () => ({ layout: { save: mocks.save, load: mocks.load } }))
 
+import { TFile } from 'obsidian'
 import MindmapView from './view'
 import { layoutManager } from './layout-manager'
 
-const a = { path: 'a.md', basename: 'a' }
-const b = { path: 'b.md', basename: 'b' }
-const c = { path: 'c.md', basename: 'c' }
-const pinned = (file: typeof a) => ({ type: 'pinned', path: file.path })
+// Restoring looks notes up with `getAbstractFileByPath`, which only ever
+// returns a `TFile`, so the fixtures have to be instances of the mocked class.
+const file = (name: string) => Object.assign(new TFile(), { path: `${name}.md`, basename: name })
+const a = file('a')
+const b = file('b')
+const c = file('c')
+const pinned = (file: TFile) => ({ type: 'pinned', path: file.path })
 
 function markdown() {
   return { view: { getViewType: () => 'markdown' } }
 }
-function mindmap(subject: typeof a | 'unpinned') {
+function mindmap(subject: TFile | 'unpinned') {
   const view = new MindmapView({} as never, '', subject !== 'unpinned')
   mocks.subjects.set(view, subject)
   return { view }
@@ -53,7 +57,8 @@ function workspace(root: any, activeTabGroup = root.children.at(-1)) {
       leaf.parent.currentTab = leaf.parent.children.indexOf(leaf)
     }),
   }
-  vi.stubGlobal('app', { workspace: ws, vault: { getMarkdownFiles: () => [a, b, c] } })
+  const vault = { getAbstractFileByPath: (path: string) => [a, b, c].find(file => file.path === path) ?? null }
+  vi.stubGlobal('app', { workspace: ws, vault })
   return ws
 }
 
@@ -130,7 +135,7 @@ describe('mindmap workspace layout', () => {
 
   it('handles empty workspace groups and deleted files without inventing replacement panes', async () => {
     workspace(split([tabs([]), tabs([markdown()])]))
-    mocks.load.mockReturnValue({ version: 1, root: [[], [pinned({ path: 'deleted.md', basename: 'deleted' })]] })
+    mocks.load.mockReturnValue({ version: 1, root: [[], [{ type: 'pinned', path: 'deleted.md' }]] })
     await expect(layoutManager.deserialise()).resolves.toBeUndefined()
     expect(mocks.replace).not.toHaveBeenCalled()
   })

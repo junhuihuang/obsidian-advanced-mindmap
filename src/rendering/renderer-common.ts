@@ -23,7 +23,7 @@ const styleEl = createEl('style', {
   parent: document.head,
   text: globalCSS
 })
-nextTick().then(() => {
+void nextTick().then(() => {
   const sheet = new Stylesheet(styleEl)
   const rule = sheet.getRule('.markmap')!
   rule.removeProperty('color')
@@ -54,19 +54,25 @@ export function transformMarkdown(markdown: string, sourceRoots: SourceNode[] = 
 export function splitMarkdown<Type extends 'file' | 'codeBlock'>(type: Type, markdown: string) {
   const { frontmatter, contentStart } = getFrontMatterInfo(markdown)
   const body = markdown.slice(0, contentStart)
-  const parsed = yaml.parse(frontmatter) ?? {}
+  const parsed: unknown = yaml.parse(frontmatter) ?? {}
   type Settings =
     Type extends 'file' ? FileSettings : CodeBlockSettings
-  const settings = ('markmap' in parsed ? parsed.markmap : {}) as Settings
+  const markmap = isRecord(parsed) ? parsed.markmap : undefined
+  const settings = (isRecord(markmap) ? markmap : {}) as Settings
   return { body, settings }
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
 export function loadAssets(features: IFeatures) {
   const { styles, scripts } = transformer.getUsedAssets(features)
-  if (scripts) loadJS(scripts)
-  if (styles) loadCSS(styles.filter(s =>
-    // @ts-expect-error
-    !s.data?.href.contains('@highlightjs') ))
+  if (scripts) void loadJS(scripts)
+  if (styles) void loadCSS(styles.filter(style => {
+    const href = (style.data as { href?: string } | undefined)?.href
+    // Highlight.js's theme is replaced by the plugin's own node coloring.
+    return !href?.includes('@highlightjs')
+  }))
 }
 
 function withNodeColor(fn: (node: INode) => string) {
@@ -174,13 +180,13 @@ export function zoomMarkmap(markmap: Markmap, factor: number, anchor?: ZoomAncho
       (box.width / 2 - current.x) / current.k,
       (box.height / 2 - current.y) / current.k,
     )
-    markmap.svg.call(markmap.zoom.transform, zoomIdentity.translate(next.x, next.y).scale(next.k))
+    markmap.svg.call(boundTransform(markmap), zoomIdentity.translate(next.x, next.y).scale(next.k))
     return
   }
 
   let next = centerZoom({ k: current.k, x: current.x, y: current.y }, factor, point, box.width, box.height)
   if (keepVisible) next = clampToViewport(next, keepVisible, box.width, box.height)
-  markmap.svg.call(markmap.zoom.transform, zoomIdentity.translate(next.x, next.y).scale(next.k))
+  markmap.svg.call(boundTransform(markmap), zoomIdentity.translate(next.x, next.y).scale(next.k))
 }
 
 /**
@@ -202,7 +208,15 @@ export function centerSubtree(markmap: Markmap, node: INode): Promise<void> {
   if (keepVisible) next = clampToViewport(next, keepVisible, box.width, box.height)
   const target = zoomIdentity.translate(next.x, next.y).scale(next.k)
 
-  return markmap.transition(markmap.svg).call(markmap.zoom.transform, target).end().catch(() => {})
+  return markmap.transition(markmap.svg).call(boundTransform(markmap), target).end().catch(() => {})
+}
+
+/**
+ * d3-zoom's `transform` is a method of the zoom behaviour, so it has to keep
+ * its receiver when it is handed to `selection.call`.
+ */
+function boundTransform(markmap: Markmap) {
+  return markmap.zoom.transform.bind(markmap.zoom)
 }
 
 /**

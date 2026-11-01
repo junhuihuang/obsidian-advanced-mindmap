@@ -24,18 +24,18 @@ Callbag.subscribe(pin, () => {
   const activeFile = getActiveFile()!
   if (views.has(activeFile)) {
     leafManager.close(activeFile)
-    leafManager.replace('unpinned', activeFile)
+    void leafManager.replace('unpinned', activeFile)
   }
   else
-    leafManager.replace('unpinned', activeFile)
+    void leafManager.replace('unpinned', activeFile)
 })
 Callbag.subscribe(unpin, (file: TFile) => {
   if (views.has('unpinned')) {
     leafManager.close('unpinned')
-    leafManager.replace(file, 'unpinned')
+    void leafManager.replace(file, 'unpinned')
   }
   else
-    leafManager.replace(file, 'unpinned')
+    void leafManager.replace(file, 'unpinned')
 })
 
 Callbag.subscribe(fileOpen, file => {
@@ -43,12 +43,12 @@ Callbag.subscribe(fileOpen, file => {
 
   if (views.has(file)) {
     const view = views.get(file)!
-    view.render(file)
+    void view.render(file)
   }
 
   if (views.has('unpinned')) {
     const view = views.get('unpinned')!
-    view.render(file)
+    void view.render(file)
   }
 })
 
@@ -56,13 +56,13 @@ Callbag.subscribe(fileRenamed, ({ path }) => {
   const activeFile = getActiveFile()
   const unpinned = views.get('unpinned')
   if (unpinned && activeFile && activeFile.path === path && globalSettings.titleAsRootNode)
-    unpinned.render(activeFile)
+    void unpinned.render(activeFile)
 
   const result = views.getByPath(path)
   if (result) {
     const { view, file } = result
     view.setDisplayText(file.basename)
-    view.render(file)
+    void view.render(file)
   }
 })
 
@@ -79,12 +79,12 @@ Callbag.subscribe(fileChanged, ({ editor, info: { file } }) => {
 
   if (views.has(file)) {
     const view = views.get(file)!
-    view.render(file, content)
+    void view.render(file, content)
   }
 
   if (views.has('unpinned')) {
     const view = views.get('unpinned')!
-    view.render(file, content)
+    void view.render(file, content)
   }
 })
 

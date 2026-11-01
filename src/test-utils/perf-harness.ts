@@ -95,10 +95,10 @@ export function createPerfHarness(markdown: string, options: Partial<NodeEditorO
 
   let queryCount = 0
   const querySelectorAll = svg.querySelectorAll.bind(svg)
-  svg.querySelectorAll = ((selectors: string) => {
+  svg.querySelectorAll = (selectors: string) => {
     queryCount++
     return querySelectorAll(selectors)
-  }) as typeof svg.querySelectorAll
+  }
 
   let current = markdown
 

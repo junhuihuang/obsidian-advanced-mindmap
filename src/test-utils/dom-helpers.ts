@@ -97,7 +97,8 @@ export function installDomHelpers() {
   proto.instanceOf ??= function (this: Element, ctor: typeof Element) { return (this as object) instanceof ctor }
   proto.setCssStyles ??= function (this: HTMLElement | SVGElement, styles: Partial<CSSStyleDeclaration>) {
     const style = this.style as unknown as Record<string, string>
-    for (const [key, value] of Object.entries(styles))
+    const declarations = styles as Record<string, string | number | null | undefined>
+    for (const [key, value] of Object.entries(declarations))
       style[key] = value === null || value === undefined ? '' : String(value)
   }
   proto.setCssProps ??= function (this: HTMLElement | SVGElement, props: Record<string, string>) {

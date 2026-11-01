@@ -83,16 +83,21 @@ export type v2 = {
 /** Node width keys (see `nodeWidthKeyForText`) mapped to content pixels. */
 export type NodeWidths = Record<string, number>
 
-const useDefaultsForMissingKeys =
-(data: Partial<v2> | null | undefined): v2 => ({
-  version: '2.0',
-  layout: data?.layout ?? [],
-  nodeWidths: data?.nodeWidths ?? {},
-  settings: {
-    ...defaultSettings,
-    ...data?.settings
+const useDefaultsForMissingKeys = (data: unknown): v2 => {
+  const stored: Partial<v2> = isRecord(data) ? data : {}
+  return {
+    version: '2.0',
+    layout: stored.layout ?? [],
+    nodeWidths: stored.nodeWidths ?? {},
+    settings: {
+      ...defaultSettings,
+      ...(isRecord(stored.settings) ? stored.settings : {}),
+    },
   }
-})
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
 
 type OmitFromFileSettings =
 | 'splitDirection'
@@ -109,7 +114,7 @@ const { resolve, promise: settingsLoaded } = Promise.withResolvers<GlobalSetting
 export { settingsLoaded }
 
 const events = new LocalEvents<keyof GlobalSettings>()
-export const settingChanges = { listen: events.listen }
+export const settingChanges = { listen: events.listen.bind(events) }
 
 export let globalSettings: GlobalSettings
 let data: v2 | undefined
@@ -118,18 +123,18 @@ export let layout: {
   load(): Layout
 }
 
-plugin.loadData()
+void plugin.loadData()
 .then(data => useDefaultsForMissingKeys(data))
 .then(fsd => {
   data = fsd
-  plugin.saveData(fsd)
+  void plugin.saveData(fsd)
 
   globalSettings = new Proxy<GlobalSettings>(fsd.settings, {
     get: (_, key: keyof GlobalSettings) => fsd.settings[key],
     set<K extends keyof GlobalSettings>(_: GlobalSettings, key: K, value: GlobalSettings[K]) {
       fsd.settings[key] = value
       events.emit(key, value)
-      plugin.saveData(fsd)
+      void plugin.saveData(fsd)
       return true
     }
   })
@@ -137,7 +142,7 @@ plugin.loadData()
   layout = {
     save(layout: Layout) {
       fsd.layout = layout
-      plugin.saveData(fsd)
+      void plugin.saveData(fsd)
     },
     load: () => fsd.layout
   }

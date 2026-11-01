@@ -62,6 +62,6 @@ Callbag.subscribe(isDarkMode, isDarkMode => {
   document.body.classList[method]('markmap-dark')
 })
 
-Callbag.subscribe(renderTabs$, views.renderAll)
+Callbag.subscribe(renderTabs$, () => views.renderAll())
 
-import('src/views/event-listeners')
+void import('src/views/event-listeners')

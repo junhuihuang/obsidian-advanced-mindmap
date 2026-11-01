@@ -177,7 +177,7 @@ const NO_WRAP_LIMIT = 9000
  * the editor honours per-file settings without duplicating the option plumbing.
  */
 export function nodeMaxWidth(group: Element): number | undefined {
-  const svg = (group.closest('svg.markmap') ?? group.closest('svg')) as SVGSVGElement | null
+  const svg = group.closest<SVGSVGElement>('svg.markmap') ?? group.closest<SVGSVGElement>('svg')
   if (!svg) return undefined
 
   // A node resized with the mouse has its own fixed width, which overrides the

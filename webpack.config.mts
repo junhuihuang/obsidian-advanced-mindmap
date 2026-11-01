@@ -46,11 +46,9 @@ const config: CallableWebpackConfiguration = (env, argv) => ({
 })
 export default config
 
-function getMode(mode: string) {
-  if (['development', 'production'].includes(mode))
-    return mode as 'development' | 'production'
-  else
-    throw 'Expected --mode development or production'
+function getMode(mode: unknown): 'development' | 'production' {
+  if (mode === 'development' || mode === 'production') return mode
+  throw new Error(`Expected --mode development or production, got ${String(mode)}`)
 }
 
 /**

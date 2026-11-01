@@ -18,8 +18,8 @@ export function fromObsidianEvent<
     const sendArgsArray = (...args: CallbackParams) => next(args)
     // `Events.on` is overloaded per event name; the callback type above was
     // already selected by the name, so this is the one signature to call.
-    const on = target.on as unknown as OnSignature
-    const ref = on.call(target, name, sendArgsArray as (...args: unknown[]) => void)
+    const on = (target.on as unknown as OnSignature).bind(target)
+    const ref = on(name, sendArgsArray as (...args: unknown[]) => void)
     plugin.registerEvent(ref)
     plugin.register(complete)
   })

@@ -41,7 +41,7 @@ const views = {
     subject2view.forEach((view, subject) => {
       const pinned = subject !== 'unpinned'
       const file = pinned ? subject : getActiveFile()
-      if (file) view.render(file)
+      if (file) void view.render(file)
     })
   },
 

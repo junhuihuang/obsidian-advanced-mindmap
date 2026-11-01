@@ -1,5 +1,6 @@
 import { getApp } from 'src/core/app'
-import type { WorkspaceSplit, WorkspaceTabs, WorkspaceLeaf, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { WorkspaceSplit, WorkspaceTabs, WorkspaceLeaf } from 'obsidian'
 import { MM_VIEW_TYPE } from 'src/constants'
 import { leafManager } from './leaf-manager'
 import { LoadingView } from './loading-view'
@@ -45,13 +46,12 @@ function renderLeaf(leaf: WorkspaceLeaf | undefined) {
   if (!(leaf?.view instanceof MindmapView)) return
   const subject = views.get(leaf.view)
   const file = subject === 'unpinned' ? getActiveFile() : subject
-  if (file) leaf.view.firstRender(file)
+  if (file) void leaf.view.firstRender(file)
 }
 
 function renderVisible(node: Branch) {
   if (node.type === 'tabs') {
-    const tabs = node as WorkspaceTabs
-    renderLeaf(tabs.children[tabs.currentTab])
+    renderLeaf(node.children[node.currentTab])
   }
   else {
     for (const child of node.children) renderVisible(child as Branch)
@@ -76,14 +76,15 @@ async function deserialise() {
       return
     }
     if (Array.isArray(tree[0])) return
-    const tabs = node as WorkspaceTabs
+    const tabs = node
     const currentIndex = tabs.currentTab
     const leaves = [...tabs.children]
     for (const [index, subject] of (tree as Tabs).entries()) {
       if (!subject || !leaves[index]) continue
-      const file = subject.type === 'unpinned'
-        ? 'unpinned'
-        : getApp().vault.getMarkdownFiles().find(file => file.path === subject.path)
+      // Look the saved path up directly: enumerating the vault to find one
+      // note would read every path in it.
+      const found = subject.type === 'unpinned' ? undefined : getApp().vault.getAbstractFileByPath(subject.path)
+      const file = found instanceof TFile ? found : subject.type === 'unpinned' ? 'unpinned' : undefined
       if (file) await leafManager.replace(leaves[index], file)
     }
     const current = tabs.children[currentIndex]
