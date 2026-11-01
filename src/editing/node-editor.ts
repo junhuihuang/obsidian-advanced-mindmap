@@ -3003,18 +3003,6 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
         .onClick(() => resetWidth(path)))
     }
 
-    menu
-      .addSeparator()
-      .addItem(item => item
-        .setTitle(strings.nodeEditor.remove)
-        .setIcon('trash')
-        .onClick(() => {
-          // The node under the pointer may be one of several selected nodes:
-          // then the whole selection goes, exactly as Backspace removes it.
-          if (!selectedPaths.some(selected => samePath(selected, path))) selectOnly(path)
-          void removeSelection()
-        }))
-
     if (clipboard) {
       menu.addSeparator()
       menu.addItem(item => item
@@ -3030,6 +3018,19 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
         .setIcon('file-search')
         .onClick(() => goToDefinition(path)))
     }
+
+    // Destructive last, so it is never hit by accident on the way to another item.
+    menu
+      .addSeparator()
+      .addItem(item => item
+        .setTitle(strings.nodeEditor.remove)
+        .setIcon('trash')
+        .onClick(() => {
+          // The node under the pointer may be one of several selected nodes:
+          // then the whole selection goes, exactly as Backspace removes it.
+          if (!selectedPaths.some(selected => samePath(selected, path))) selectOnly(path)
+          void removeSelection()
+        }))
 
     menu.showAtMouseEvent(event)
   }

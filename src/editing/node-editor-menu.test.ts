@@ -139,6 +139,31 @@ describe('the node context menu', () => {
     expect(rightClick(boxes[0]).item(strings.nodeEditor.resetWidth)).toBeUndefined()
   })
 
+  it('ends the title of every shortcut item with its keys', () => {
+    const { boxes } = setup()
+    const menu = rightClick(boxes[0])
+    const titles = menu.items.map(item => item.title)
+
+    expect(titles).toContain(strings.nodeEditor.edit)
+    expect(strings.nodeEditor.edit).toMatch(/\(i\)$/)
+    expect(strings.nodeEditor.addChild).toMatch(/\(Tab\)$/)
+    expect(strings.nodeEditor.addSibling).toMatch(/\(Enter\)$/)
+    expect(strings.nodeEditor.cut).toMatch(/\(Ctrl\+X\)$/)
+    expect(strings.nodeEditor.fold).toMatch(/\(zc\)$/)
+    expect(strings.nodeEditor.unfold).toMatch(/\(zo\)$/)
+    expect(strings.nodeEditor.unfoldAll).toMatch(/\(zO\)$/)
+    expect(strings.nodeEditor.remove).toMatch(/\(Backspace\)$/)
+  })
+
+  it('puts Delete node last', () => {
+    const { boxes, widths } = setup()
+    // Every optional item is present, so the position really is the last one.
+    widths.b = 240
+    const menu = rightClick(boxes[1])
+
+    expect(menu.items[menu.items.length - 1]?.title).toBe(strings.nodeEditor.remove)
+  })
+
   it('removes the single selected node', async () => {
     const { boxes, setMarkdown } = setup()
     click(boxes[1])
