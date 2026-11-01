@@ -6,7 +6,6 @@ type NodeParams = {
   fold?: 'this' | 'tree'
 }
 
-const validFoldValues = ['this', 'tree']
 const colorKeys = ['color', 'nodecolor', 'bgcolor']
 
 export function parseNodeParams(input: string): NodeParams {
@@ -28,8 +27,8 @@ export function parseNodeParams(input: string): NodeParams {
 
     if (key === 'fold') {
       const foldVal = value.toLowerCase()
-      if (validFoldValues.includes(foldVal))
-        result.fold = foldVal as any
+      if (foldVal === 'this' || foldVal === 'tree')
+        result.fold = foldVal
       continue
     }
 

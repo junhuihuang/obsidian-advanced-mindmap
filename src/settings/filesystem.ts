@@ -84,10 +84,10 @@ export type v2 = {
 export type NodeWidths = Record<string, number>
 
 const useDefaultsForMissingKeys =
-(data: any): v2 => ({
+(data: Partial<v2> | null | undefined): v2 => ({
   version: '2.0',
-  layout: data?.layout || [],
-  nodeWidths: data?.nodeWidths || {},
+  layout: data?.layout ?? [],
+  nodeWidths: data?.nodeWidths ?? {},
   settings: {
     ...defaultSettings,
     ...data?.settings
@@ -119,14 +119,14 @@ export let layout: {
 }
 
 plugin.loadData()
-.then(useDefaultsForMissingKeys)
+.then(data => useDefaultsForMissingKeys(data))
 .then(fsd => {
   data = fsd
   plugin.saveData(fsd)
 
   globalSettings = new Proxy<GlobalSettings>(fsd.settings, {
     get: (_, key: keyof GlobalSettings) => fsd.settings[key],
-    set<K extends keyof GlobalSettings>(_: any, key: K, value: GlobalSettings[K]) {
+    set<K extends keyof GlobalSettings>(_: GlobalSettings, key: K, value: GlobalSettings[K]) {
       fsd.settings[key] = value
       events.emit(key, value)
       plugin.saveData(fsd)

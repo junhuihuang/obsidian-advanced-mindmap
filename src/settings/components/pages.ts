@@ -1,10 +1,14 @@
 import { Setting } from 'obsidian'
 import { CodeBlockSettings, Coloring, FileSettings, globalSettings, GlobalSettings, ScreenshotBgStyle } from 'src/settings/filesystem'
 import { Heading, HtmlComponent, fragment } from './various'
-import { SettingComponent, dropdown, numberText, text } from './SettingComponent'
+import { SettingComponent, dropdown, numberText } from './SettingComponent'
 import { strings } from 'src/translation'
 
 
+
+/** A settings component that can refresh itself (the heritable color controls). */
+const isUpdatable = (component: unknown): component is { update: () => void } =>
+  typeof (component as { update?: unknown }).update === 'function'
 
 // -- SectionGeneral -- //
 
@@ -47,7 +51,7 @@ const ColoringApproach = SettingComponent({
 })
 
 const Description = (approach: Coloring) => 
-  HtmlComponent(new Setting(createFragment())
+  HtmlComponent(new Setting(createDiv())
     .setClass('advmm-coloring-approach-description')
     .setDesc(strings.settings.settings.coloring.description[approach])
     .settingEl)
@@ -117,8 +121,8 @@ const SectionColoringGlobal = () => {
     all.forEach(x => x.node.hidden = true)
     for (const component of { branch, depth, single }[coloring]) {
       component.node.hidden = false
-      if ('update' in component)
-        (component.update as Function)()
+      if (isUpdatable(component))
+        component.update()
     }
   }
 
@@ -153,10 +157,10 @@ const SectionColoringHeritable = (inherit: GlobalSettings, partial: Partial<Glob
 
   function setApproach(coloring: Coloring) {
     all.forEach(x => x.node.hidden = true)
-    ~{branch, depth, single}[coloring].forEach(x => {
+    for (const x of { branch, depth, single }[coloring]) {
       x.node.hidden = false
-      if ('update' in x) (x.update as Function)()
-    })
+      if (isUpdatable(x)) x.update()
+    }
   }
 
   setApproach(partial.coloring || inherit.coloring)
@@ -212,7 +216,7 @@ const SectionScreenshotsHeading = Heading(
 )
 
 const ScreenshotTextColor = (settings: Pick<GlobalSettings, 'screenshotTextColor' | 'screenshotTextColorEnabled'>) =>
-  HtmlComponent(new Setting(createFragment())
+  HtmlComponent(new Setting(createDiv())
     .setName(strings.settings.settings.screenshotTextColor.name)
     .setDesc(strings.settings.settings.screenshotTextColor.description)
     .addColorPicker(colPicker => colPicker
@@ -227,10 +231,10 @@ const ScreenshotTextColor = (settings: Pick<GlobalSettings, 'screenshotTextColor
   )
 
 const ScreenshotBackgroundStyle = (settings: Pick<GlobalSettings, 'screenshotBgStyle' | 'screenshotBgColor'>) =>
-  HtmlComponent(new Setting(createFragment())
+  HtmlComponent(new Setting(createDiv())
     .setName(strings.settings.settings.screenshotBgStyle.name)
     .setDesc(strings.settings.settings.screenshotBgStyle.description)
-    .addDropdown<ScreenshotBgStyle>(dropdown => dropdown
+    .addDropdown(dropdown => dropdown
       .addOptions({
         [ScreenshotBgStyle.Transparent]: strings.settings.settings.screenshotBgStyle.transparent,
         [ScreenshotBgStyle.Color]: strings.settings.settings.screenshotBgStyle.color,
@@ -238,7 +242,7 @@ const ScreenshotBackgroundStyle = (settings: Pick<GlobalSettings, 'screenshotBgS
       })
       .setValue(settings.screenshotBgStyle)
       .onChange(value =>
-        settings.screenshotBgStyle = value ))
+        settings.screenshotBgStyle = value as ScreenshotBgStyle))
     .addColorPicker(colPicker => colPicker
       .setValue(settings.screenshotBgColor)
       .onChange(value =>

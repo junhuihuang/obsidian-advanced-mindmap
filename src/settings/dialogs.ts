@@ -10,6 +10,10 @@ import { CodeBlockDoc, FileDoc } from './components/explanations'
 import { createSettingsProxy } from './proxy'
 
 
+// The settings UI is a custom, paginated layout (page selector, heritable
+// per-file values, live preview). It cannot be expressed with the declarative
+// API, so `display()` stays.
+// eslint-disable-next-line obsidianmd/settings-tab/prefer-setting-definitions
 export class GlobalSettingsDialog extends PluginSettingTab {
   constructor() {
     super(plugin.app, plugin)
@@ -60,7 +64,7 @@ export class CodeBlockSettingsDialog extends Modal {
     const inheritSettings = new Proxy({} as GlobalSettings, {
       // When I wrote this, FileSettings was a subset of GlobalSettings
       // not sure exactly what this is supposed to do
-      get: (_, key: keyof GlobalSettings) => key in fileSettings ? (fileSettings as any)[key] : globalSettings[key],
+      get: (_, key: keyof GlobalSettings) => key in fileSettings ? (fileSettings as Record<keyof GlobalSettings, unknown>)[key] : globalSettings[key],
       set: () => false
     })
 

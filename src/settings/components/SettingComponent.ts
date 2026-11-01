@@ -4,7 +4,7 @@ import { Resolve } from 'src/utilities/utilities'
 
 
 interface ControlComponent<T> extends ValueComponent<T> {
-  onChange(callback: (value: T) => any): this
+  onChange(callback: (value: T) => unknown): this
 }
 
 export const dropdown = (...options: [string, string][]) => ({ tag: 'dropdown' as const, options })
@@ -25,11 +25,15 @@ type SettingOptions = {
 
 export const SettingComponent = (options: SettingOptions) => {
   const common = () => {
-    const setting = new Setting(createFragment())
+    const setting = new Setting(createDiv())
       .setName(options.name)
-    options.description && setting.setDesc(options.description)
+    if (options.description) setting.setDesc(options.description)
 
     const controlType = typeof options.control === 'string' ? options.control : options.control.tag
+    // The controls (text, number, toggle, color, dropdown) share no common
+    // value type, so this one has to be untyped; `setValue`/`onChange` are
+    // narrowed again per control below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let control = Resolve<ControlComponent<any>>(resolve => ({
       text: () => setting.addText(resolve),
       numberText: () => setting.addText(resolve),
@@ -41,7 +45,7 @@ export const SettingComponent = (options: SettingOptions) => {
     if (controlType === 'numberText') {
       const oldControl = control
       const newControl: ControlComponent<number> = Object.create(control)
-      newControl.onChange = (listener: (n: number) => any) => {
+      newControl.onChange = (listener: (n: number) => unknown) => {
         oldControl.onChange((str: string) => listener(Number.parseInt(str)))
         return newControl
       }
@@ -50,6 +54,9 @@ export const SettingComponent = (options: SettingOptions) => {
     }
 
     type Listener<T extends string | number | boolean = string | number | boolean> = (value: T) => void
+    // Listeners register with their own value type; the proxy below forwards
+    // whatever the control reports, so this slot stays untyped.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let changeListener: Listener<any>
     const originalOnChange = control.onChange.bind(control)
     control.onChange = cb =>
@@ -82,8 +89,9 @@ export const SettingComponent = (options: SettingOptions) => {
     function update() { control.setValue(globalSettings[key])}
     update()
 
-    control.onChange(value =>
-      (globalSettings[key] as any) = value)
+    control.onChange(value => {
+      (globalSettings as Record<string, unknown>)[key] = value
+    })
 
     return {
       node,
@@ -104,7 +112,7 @@ export const SettingComponent = (options: SettingOptions) => {
     loadState()
 
     control.onChange(newValue => {
-      (partialSettings[key] as any) = newValue
+      (partialSettings as Record<string, unknown>)[key] = newValue
       setInherit(false)
     })
 

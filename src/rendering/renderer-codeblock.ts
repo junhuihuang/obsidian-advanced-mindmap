@@ -93,9 +93,8 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
     })
 
     const { classList } = containerEl.parentElement!
-    settings.merged.highlight
-      ? classList.add   (cssClasses.highlight)
-      : classList.remove(cssClasses.highlight)
+    if (settings.merged.highlight) classList.add(cssClasses.highlight)
+    else classList.remove(cssClasses.highlight)
 
     return promise
   }
@@ -124,7 +123,7 @@ class SettingsManager {
   private newHeight: number | undefined
   private readonly DEFAULT_HEIGHT = 150
   private settings: {
-    global: GlobalSettings
+    plugin: GlobalSettings
     file: FileSettings
     codeBlock: CodeBlockSettings
   }
@@ -136,18 +135,18 @@ class SettingsManager {
   ) {
     autoBind(this)
     this.settings = {
-      global: globalSettings,
+      plugin: globalSettings,
       file: fileSettings,
       codeBlock: codeBlockSettings
     }
   }
 
   get merged(): CodeBlockSettings {
-    return { ...this.settings.global, ...this.settings.file, ...this.settings.codeBlock, height: this.height }
+    return { ...this.settings.plugin, ...this.settings.file, ...this.settings.codeBlock, height: this.height }
   }
 
-  set global(s: GlobalSettings) {
-    this.settings.global = s
+  set globalSettings(s: GlobalSettings) {
+    this.settings.plugin = s
   }
 
   set file(s: FileSettings) {
@@ -184,7 +183,7 @@ class SettingsManager {
     const gm = GrayMatter(text)
     gm.data.markmap ??= {}
     update(gm.data.markmap)
-    isObjectEmpty(gm.data.markmap) && delete gm.data.markmap
+    if (isObjectEmpty(gm.data.markmap)) delete gm.data.markmap
 
     editor.replaceRange(
       GrayMatter.stringify(gm.content, gm.data),
@@ -196,9 +195,9 @@ class SettingsManager {
 const EditorLine = (line: number): EditorPosition => ({ line, ch: 0 })
 
 function SizeManager(containerEl: CodeBlock['containerEl'], svg: SVGSVGElement, settings: SettingsManager) {
-  svg.style.height = settings.height + 'px'
+  svg.setCssStyles({ height: settings.height + 'px' })
 
-  const resizeHandle = document.createElement('hr')
+  const resizeHandle = createEl('hr')
   containerEl.prepend(resizeHandle)
   resizeHandle.classList.add('workspace-leaf-resize-handle')
 
@@ -206,7 +205,7 @@ function SizeManager(containerEl: CodeBlock['containerEl'], svg: SVGSVGElement, 
 
   Callbag.subscribe(drag$, drag => {
     settings.height += drag.changeFromPrevious.y
-    svg.style.height = settings.height + 'px'
+    svg.setCssStyles({ height: settings.height + 'px' })
   })
 
   Callbag.subscribe(fromEvent(document, 'mouseup'), settings.saveHeight)

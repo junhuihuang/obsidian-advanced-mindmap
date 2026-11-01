@@ -2,23 +2,27 @@ import autoBind from 'auto-bind'
 import { Merge } from 'type-fest'
 
 type Path<EventName> = [EventName, number]
+/** A listener of an arbitrary signature: `never` accepts every parameter list. */
+type Listener = (data: never) => unknown
 
 export class LocalEvents<EventName extends string> {
-  private listeners: Record<string, Function[]> = {}
+  private listeners: Record<string, Listener[]> = {}
 
   constructor() { autoBind(this) }
 
-  public emit(name: EventName, data?: any) {
+  public emit(name: EventName, data?: unknown) {
     const listeners = this.listeners[name]
     if (!listeners) return
-    listeners.forEach(cb => cb(data))
+    listeners.forEach(cb => (cb as (data?: unknown) => void)(data))
   }
 
-  public listen(name: EventName, callback?: Function): any {
+  public listen(name: EventName): (callback: Listener) => () => void
+  public listen(name: EventName, callback: Listener): () => void
+  public listen(name: EventName, callback?: Listener): unknown {
     // Curry: with one argument returns a function that takes the callback;
     // with two arguments registers the callback directly.
     if (callback === undefined) {
-      return (cb: Function) => this.listen(name, cb)
+      return (cb: Listener) => this.listen(name, cb)
     }
     const path: Path<EventName> =
       [name, this.listeners?.[name]?.length ?? 0]
@@ -47,18 +51,19 @@ declare global {
   }
 }
 if (!Promise.withResolvers)
-  Promise.withResolvers = () => {
-    let resolve, reject
-    const promise = new Promise((res, rej) => {
+  Promise.withResolvers = <T,>() => {
+    let resolve!: (value: T | PromiseLike<T>) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((res, rej) => {
       resolve = res
       reject = rej
     })
-    return { promise, resolve, reject } as any
+    return { promise, resolve, reject }
   }
 
 export const nextTick = () => Promise.resolve()
 
-export const isObjectEmpty = (object: Object) =>
+export const isObjectEmpty = (object: object) =>
   Object.keys(object).length === 0
 
 export const iife = <Return>(fn: () => Return) => fn()
@@ -87,7 +92,7 @@ export const notNullish = Object.assign(
 
 export const defineLazyGetters = <
   Obj extends object,
-  Getters extends Record<string, () => any>
+  Getters extends Record<string, () => unknown>
 >(
   obj: Obj,
   getters: Getters
@@ -102,5 +107,5 @@ export const defineLazyGetters = <
         return value
       }
     })
-  return obj as any
+  return obj as unknown as Merge<Obj, { [K in keyof Getters]: ReturnType<Getters[K]> }>
 }

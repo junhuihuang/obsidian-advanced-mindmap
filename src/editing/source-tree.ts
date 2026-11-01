@@ -80,7 +80,6 @@ function parseBlock(lines: string[], index: number): { node: SourceNode, next: n
     let end = index + 1
     while (end < lines.length && !lines[end].trimStart().startsWith(marker)) end++
     const endLine = Math.min(end, lines.length - 1)
-    const raw = lines.slice(index, endLine + 1)
 
     return {
       node: makeBlock('code', lines, index, endLine, indentText, marker),

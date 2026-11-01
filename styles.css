@@ -178,6 +178,21 @@
 }
 .advmm-settings-level-explanation .clickable-icon { display: inline-block }
 
+/* Hidden mirror used to measure node text in the editor's own font. */
+.advmm-node-measure {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-sizing: content-box;
+  /* No wrapping: the width of the box is the width of the text. */
+  white-space: pre;
+}
+
 /* Inline node editor */
 
 .advmm-node-editor {
@@ -578,4 +593,26 @@
 @keyframes advmm-search-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+
+/* Line thickness, driven by the settings through CSS variables. */
+
+.markmap path.markmap-link,
+.markmap g.markmap-node line {
+    stroke-width: var(--advmm-line-thickness, 1);
+}
+
+.markmap g[data-depth="0"].markmap-node line {
+    stroke-width: var(--advmm-line-thickness-depth1, 3);
+}
+
+.markmap path.markmap-link[data-depth="1"],
+.markmap g.markmap-node[data-depth="1"] line {
+    stroke-width: var(--advmm-line-thickness-depth2, 1.5);
+}
+
+.markmap path.markmap-link[data-depth="2"],
+.markmap g.markmap-node[data-depth="2"] line {
+    stroke-width: var(--advmm-line-thickness-depth3, 1);
 }

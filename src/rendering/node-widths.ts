@@ -131,7 +131,7 @@ export function applyNodeWidths(svg: SVGSVGElement, widths: NodeWidths): boolean
         changed = true
       }
     } else if (label.style.width !== `${width}px`) {
-      label.style.width = `${width}px`
+      label.setCssStyles({ width: `${width}px` })
       changed = true
     }
   }

@@ -45,5 +45,5 @@ export function clearNativeSelection(doc: Document | undefined) {
 /** Elements that own their own tap behaviour (links, fold circles). */
 export function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
-  return target instanceof SVGCircleElement || !!target.closest('a')
+  return target.instanceOf(SVGCircleElement) || !!target.closest('a')
 }

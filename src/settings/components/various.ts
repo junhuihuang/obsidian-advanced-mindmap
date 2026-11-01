@@ -16,7 +16,7 @@ export const div = (children: Children, options?: string | DomElementInfo) => Ht
   createDiv(options, div => children.forEach(child => child && div.append(child.node))))
 
 export const Heading = (title: string, desc?: string) => () =>
-  HtmlComponent(new Setting(createFragment())
+  HtmlComponent(new Setting(createDiv())
     .setHeading()
     .setName(title)
     .then(setting => desc && setting.setDesc(desc))

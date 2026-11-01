@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- ambient declarations that mirror untyped browser/Electron/callbag APIs */
+
 
 export type ArrayElement<A> = A extends readonly (infer T)[] ? T : never
 type DeepWriteable<T> = { -readonly [P in keyof T]: DeepWriteable<T[P]> }

@@ -17,7 +17,7 @@ function domRect(width: number, height = 20): DOMRect {
  */
 function stubTextMetrics(pxPerCharacter = 10) {
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-    if (this.classList.contains('advmm-node-editor-measure')) {
+    if (this.classList.contains('advmm-node-measure')) {
       return domRect(((this as HTMLElement).textContent ?? '').length * pxPerCharacter)
     }
     return domRect(0, 0)

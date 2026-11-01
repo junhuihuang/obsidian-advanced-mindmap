@@ -27,7 +27,7 @@ const wikilinkRegex = /\[\[(?<link>[^|\]]+)\|?((?<displayText>[^\]]+))?\]\]/g
 
 function replacement(match: RegExpExecArray) {
   const { link, displayText } = match.groups!
-  return `<a href=\"${link}\">${displayText || link}</a>`
+  return `<a href="${link}">${displayText || link}</a>`
 }
 
 export const parseInternalLinks = recurseChildren(node => {

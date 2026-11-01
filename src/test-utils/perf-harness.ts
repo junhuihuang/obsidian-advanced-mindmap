@@ -1,3 +1,5 @@
+/* eslint-disable obsidianmd/prefer-create-el -- the harness builds detached DOM for benchmarks, outside the app's `createEl` helpers */
+
 /**
  * Shared harness for the editing performance tests and benchmarks.
  *
@@ -12,24 +14,9 @@ import type { NodeEditorHandle, NodeEditorOptions } from 'src/editing/node-edito
 import { attachNodeEditor } from 'src/editing/node-editor'
 import { flattenPaths, parseSource, type SourceNode } from 'src/editing/source-tree'
 
-// Obsidian augments the DOM with these helpers; provide a minimal version.
-const proto = Element.prototype as any
-proto.addClass = function (...classes: string[]) { this.classList.add(...classes) }
-proto.removeClass = function (...classes: string[]) { this.classList.remove(...classes) }
-proto.toggleClass = function (cls: string, on: boolean) { this.classList.toggle(cls, on) }
-proto.createEl = function (tag: string, opts?: string | { cls?: string, text?: string }) {
-  const el = document.createElement(tag)
-  if (typeof opts === 'string') el.className = opts
-  else {
-    if (opts?.cls) el.className = opts.cls
-    if (opts?.text) el.textContent = opts.text
-  }
-  this.append(el)
-  return el
-}
-proto.createDiv = function (opts?: string | { cls?: string, text?: string }) {
-  return this.createEl('div', opts)
-}
+import { installDomHelpers } from './dom-helpers'
+
+installDomHelpers()
 
 /**
  * A markdown document with about `4 * n` nodes: one heading, then flat list

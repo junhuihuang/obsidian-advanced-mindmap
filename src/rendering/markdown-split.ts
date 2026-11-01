@@ -18,6 +18,16 @@ export interface MarkdownSplitWorkspace {
   offref: (ref: EventRef) => void
 }
 
+/** The part of a markdown view this module drives directly. */
+interface EphemeralStateView {
+  setEphemeralState?: (state: { line: number; startLoc: { line: number; col: number; offset: number } }) => void
+}
+
+function setEphemeralState(view: unknown, line: number) {
+  const target = view as EphemeralStateView | undefined
+  target?.setEphemeralState?.({ line, startLoc: { line, col: 0, offset: 0 } })
+}
+
 export interface MarkdownSplitOptions {
   /** The leaf the mindmap itself lives in; the split opens next to it. */
   leaf: WorkspaceLeaf
@@ -104,13 +114,7 @@ export function createMarkdownSplit({ leaf, getFile, onChange, workspace }: Mark
 
     if (isOpen()) {
       // Reuse the existing split: set the cursor position.
-      const view = split?.view
-      if (view && typeof (view as any).setEphemeralState === 'function') {
-        ;(view as any).setEphemeralState({
-          line: editorLine,
-          startLoc: { line: editorLine, col: 0, offset: 0 },
-        })
-      }
+      setEphemeralState(split?.view, editorLine)
     } else {
       // Create a new split and open at the right line.
       if (split && !opened) return
@@ -119,19 +123,13 @@ export function createMarkdownSplit({ leaf, getFile, onChange, workspace }: Mark
       await created.openFile(file, {
         active: true,
         state: { mode: 'source' },
-      } as any)
+      })
       // Set the cursor position on the next tick; Obsidian's MarkdownView
       // needs to finish loading before it accepts ephemeral state.
       opened = true
       onChange?.(true)
-      setTimeout(() => {
-        const view = split?.view
-        if (view && 'setEphemeralState' in view) {
-          ;(view as any).setEphemeralState({
-            line: editorLine,
-            startLoc: { line: editorLine, col: 0, offset: 0 },
-          })
-        }
+      window.setTimeout(() => {
+        setEphemeralState(split?.view, editorLine)
       }, 100)
     }
   }

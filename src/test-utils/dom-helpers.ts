@@ -1,0 +1,95 @@
+/* eslint-disable obsidianmd/prefer-create-el, obsidianmd/prefer-instanceof, obsidianmd/no-global-this -- this module implements Obsidian's DOM helpers, so it has to use the raw DOM APIs they wrap */
+
+/**
+ * The DOM helpers Obsidian adds to the global scope and to `Element.prototype`.
+ *
+ * Obsidian provides them at runtime, but unit tests run in plain jsdom, so the
+ * same helpers are installed there: the plugin code (and the tests) can rely on
+ * `createDiv`, `el.addClass`, `el.setCssStyles`, ... exactly as in the app.
+ */
+
+export type DomElementOptions = string | {
+  cls?: string
+  text?: string
+  title?: string
+  type?: string
+  value?: string
+  placeholder?: string
+  href?: string
+  attr?: Record<string, string | number | boolean | null>
+}
+
+interface DomHelpers {
+  createEl: <K extends keyof HTMLElementTagNameMap>(
+    tag: K, options?: DomElementOptions, callback?: (el: HTMLElementTagNameMap[K]) => void,
+  ) => HTMLElementTagNameMap[K]
+  createDiv: (options?: DomElementOptions, callback?: (el: HTMLDivElement) => void) => HTMLDivElement
+  createSpan: (options?: DomElementOptions, callback?: (el: HTMLSpanElement) => void) => HTMLSpanElement
+  createSvg: <K extends keyof SVGElementTagNameMap>(
+    tag: K, options?: DomElementOptions, callback?: (el: SVGElementTagNameMap[K]) => void,
+  ) => SVGElementTagNameMap[K]
+  createFragment: (callback?: (fragment: DocumentFragment) => void) => DocumentFragment
+}
+
+function applyOptions(el: Element, options?: DomElementOptions) {
+  if (options === undefined) return
+  if (typeof options === 'string') {
+    el.className = options
+    return
+  }
+  if (options.cls) el.className = options.cls
+  if (options.text !== undefined) el.textContent = options.text
+  if (options.title !== undefined) el.setAttribute('title', options.title)
+  if (options.type !== undefined) el.setAttribute('type', options.type)
+  if (options.placeholder !== undefined) el.setAttribute('placeholder', options.placeholder)
+  if (options.href !== undefined) el.setAttribute('href', options.href)
+  if (options.value !== undefined) (el as HTMLInputElement).value = options.value
+  for (const [key, value] of Object.entries(options.attr ?? {}))
+    if (value !== null && value !== false) el.setAttribute(key, String(value))
+}
+
+/** Installs the global and prototype helpers; safe to call more than once. */
+export function installDomHelpers() {
+  const helpers = globalThis as unknown as DomHelpers
+
+  helpers.createEl = (tag, options, callback) => {
+    const el = document.createElement(tag)
+    applyOptions(el, options)
+    callback?.(el)
+    document.body.appendChild(el)
+    return el
+  }
+  helpers.createDiv = (options, callback) => helpers.createEl('div', options, callback)
+  helpers.createSpan = (options, callback) => helpers.createEl('span', options, callback)
+  helpers.createSvg = (tag, options, callback) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag)
+    applyOptions(el, options)
+    callback?.(el)
+    document.body.appendChild(el)
+    return el
+  }
+  helpers.createFragment = callback => {
+    const fragment = document.createDocumentFragment()
+    callback?.(fragment)
+    return fragment
+  }
+
+  const proto = Element.prototype as unknown as Record<string, unknown>
+  proto.createSpan ??= function (this: Element, options?: DomElementOptions, callback?: (el: HTMLSpanElement) => void) {
+    return (this as Element & { createEl: DomHelpers['createEl'] }).createEl('span', options, callback)
+  }
+  proto.addClass ??= function (this: Element, ...classes: string[]) { this.classList.add(...classes) }
+  proto.removeClass ??= function (this: Element, ...classes: string[]) { this.classList.remove(...classes) }
+  proto.toggleClass ??= function (this: Element, cls: string, on: boolean) { this.classList.toggle(cls, on) }
+  proto.hasClass ??= function (this: Element, cls: string) { return this.classList.contains(cls) }
+  proto.empty ??= function (this: Element) { this.replaceChildren() }
+  proto.instanceOf ??= function (this: Element, ctor: typeof Element) { return this instanceof ctor }
+  proto.setCssStyles ??= function (this: HTMLElement | SVGElement, styles: Partial<CSSStyleDeclaration>) {
+    const style = this.style as unknown as Record<string, string>
+    for (const [key, value] of Object.entries(styles))
+      style[key] = value === null || value === undefined ? '' : String(value)
+  }
+  proto.setCssProps ??= function (this: HTMLElement | SVGElement, props: Record<string, string>) {
+    for (const [key, value] of Object.entries(props)) this.style.setProperty(key, value)
+  }
+}

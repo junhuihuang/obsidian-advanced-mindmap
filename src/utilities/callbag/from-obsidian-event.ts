@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- these generics mirror Obsidian's untyped, overloaded event signatures; callbacks are typed at each call site */
+
 import type { Events } from 'obsidian'
 import Callbag, { map } from '.'
 import { plugin } from 'src/core/main'

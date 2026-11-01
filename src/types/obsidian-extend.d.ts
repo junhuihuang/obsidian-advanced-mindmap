@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-function-type -- ambient declarations that mirror the Obsidian API, which itself uses `any` */
+
 import 'obsidian'
 import { App } from 'obsidian'
 

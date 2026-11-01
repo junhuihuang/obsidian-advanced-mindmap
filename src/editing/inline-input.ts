@@ -241,19 +241,7 @@ function nodeScale(group: Element): number {
  * and restoring it on every keystroke, which makes the caret jump.
  */
 function createLineMeasurer(reference: HTMLTextAreaElement) {
-  const mirror = document.createElement('div')
-  mirror.classList.add('advmm-node-editor-measure')
-  mirror.style.position = 'fixed'
-  mirror.style.left = '-10000px'
-  mirror.style.top = '0'
-  mirror.style.visibility = 'hidden'
-  mirror.style.pointerEvents = 'none'
-  mirror.style.margin = '0'
-  mirror.style.padding = '0'
-  mirror.style.border = 'none'
-  mirror.style.boxSizing = 'content-box'
-  // No wrapping: the width of the box is the width of the text.
-  mirror.style.whiteSpace = 'pre'
+  const mirror = createDiv('advmm-node-measure')
   document.body.appendChild(mirror)
 
   // `position()` also runs once per animation frame while a new node settles,
@@ -265,10 +253,12 @@ function createLineMeasurer(reference: HTMLTextAreaElement) {
   return {
     measure(text: string): number {
       if (text === measuredText) return measuredWidth
-      mirror.style.fontSize = reference.style.fontSize
-      mirror.style.lineHeight = reference.style.lineHeight
-      mirror.style.fontFamily = reference.style.fontFamily
-      mirror.style.fontWeight = reference.style.fontWeight
+      mirror.setCssStyles({
+        fontSize: reference.style.fontSize,
+        lineHeight: reference.style.lineHeight,
+        fontFamily: reference.style.fontFamily,
+        fontWeight: reference.style.fontWeight,
+      })
       mirror.textContent = text
       measuredText = text
       measuredWidth = mirror.getBoundingClientRect().width
@@ -282,12 +272,12 @@ function createLineMeasurer(reference: HTMLTextAreaElement) {
 
 /** An element whose inline `visibility` the editor hides while editing. */
 interface MaskedNode {
-  element: Element & { style: CSSStyleDeclaration }
+  element: StyledElement
   visibility: string
 }
 
 /** An element that carries inline styles (HTML or SVG alike). */
-type StyledElement = Element & { style: CSSStyleDeclaration }
+type StyledElement = HTMLElement | SVGElement
 
 export function openInlineInput(
   value: string,
@@ -299,34 +289,35 @@ export function openInlineInput(
   // and a single-line input cannot show that — it clips (or scrolls away) every
   // character that does not fit the node's box, so editing a sentence showed
   // only part of it until the caret was moved or editing was left.
-  const input = document.createElement('textarea')
+  const input = createEl('textarea', { cls: 'advmm-node-editor' })
   input.value = value
   input.rows = 1
-  input.classList.add('advmm-node-editor')
-  input.style.position = 'fixed'
-  // The rect describes the node's border box, so size the input the same way.
-  input.style.boxSizing = 'border-box'
-  // Obsidian's own `textarea` styles add padding and a border, which would leave
-  // the editor a narrower content box than the node and wrap the text earlier.
-  // Only an inline style reliably wins over them.
-  input.style.padding = '0px'
-  input.style.border = 'none'
-  // Obsidian themes may add CSS transitions on textarea; position tracking
-  // (rAF every frame during animation) must never be interpolated.
-  input.style.transition = 'none'
+  // Inline styles, not classes: Obsidian's own `textarea` styles add padding
+  // and a border, which would leave the editor a narrower content box than the
+  // node and wrap the text earlier. The rect describes the node's border box,
+  // so the input is sized the same way. Obsidian themes may add CSS transitions
+  // on textarea; position tracking (rAF every frame during animation) must
+  // never be interpolated.
+  input.setCssStyles({
+    position: 'fixed',
+    boxSizing: 'border-box',
+    padding: '0px',
+    border: 'none',
+    transition: 'none',
+  })
 
   // The node whose own text the editor replaces. See `Rect.mask`.
   let masked: MaskedNode | null = null
   const maskNode = (element: Element | null | undefined) => {
-    const next: StyledElement | null = element && 'style' in element ? element as StyledElement : null
+    const next: StyledElement | null = element instanceof HTMLElement || element instanceof SVGElement ? element : null
     if ((masked?.element ?? null) === next) return
     if (masked) {
-      masked.element.style.visibility = masked.visibility
+      masked.element.setCssStyles({ visibility: masked.visibility })
       masked = null
     }
     if (next) {
       masked = { element: next, visibility: next.style.visibility }
-      next.style.visibility = 'hidden'
+      next.setCssStyles({ visibility: 'hidden' })
     }
   }
 
@@ -339,8 +330,7 @@ export function openInlineInput(
     // node the input stands in for, and the anchor's text must come back the
     // moment the input is no longer over it.
     maskNode(rect.mask)
-    input.style.left = `${rect.left}px`
-    input.style.top = `${rect.top}px`
+    input.setCssStyles({ left: `${rect.left}px`, top: `${rect.top}px` })
     const trustWidth = rect.trustWidth ?? true
     // Snapping from the anchor onto the real node changes how wide the box has
     // to be. Measure right away instead of waiting for the next idle pass, or
@@ -352,15 +342,17 @@ export function openInlineInput(
     // reads that would force synchronous reflows during markmap's GPU
     // transition.
     if (fast && !movedOntoNode) return rect
-    input.style.fontSize = rect.fontSize !== undefined ? `${rect.fontSize}px` : ''
-    input.style.lineHeight = rect.lineHeight !== undefined ? `${rect.lineHeight}px` : ''
-    input.style.fontFamily = rect.fontFamily ?? ''
-    input.style.fontWeight = rect.fontWeight ?? ''
+    input.setCssStyles({
+      fontSize: rect.fontSize !== undefined ? `${rect.fontSize}px` : '',
+      lineHeight: rect.lineHeight !== undefined ? `${rect.lineHeight}px` : '',
+      fontFamily: rect.fontFamily ?? '',
+      fontWeight: rect.fontWeight ?? '',
+    })
     // When the node has no rounded corners (e.g., a fresh node whose anchor is
     // not selected), the computed border-radius is 0; let the CSS var supply
     // the theme's default roundness instead of overriding it with sharp 0px.
     const radius = rect.borderRadius ?? 0
-    input.style.borderRadius = radius > 0 ? `${radius}px` : ''
+    input.setCssStyles({ borderRadius: radius > 0 ? `${radius}px` : '' })
     // Before the user types, cover the node's own box: markmap can draw the node
     // wider than its source text (an ordered list renders `43. New node`), and a
     // box sized to the text alone leaves the node's tail sticking out from
@@ -369,15 +361,17 @@ export function openInlineInput(
     const textWidth = measurer.measure(input.value)
     const wanted = editorWidth(textWidth, rect.maxWidth)
     const cover = trustWidth && !typed
-    input.style.width = `${cover
-      ? Math.max(rect.width, wanted, MIN_EDITOR_WIDTH)
-      : Math.max(wanted, MIN_EDITOR_WIDTH)}px`
-    // Height: always content-based. The rendered box may include nodeMinHeight
-    // padding or belong to a different anchor node; neither should inflate the
-    // editor.
-    input.style.height = 'auto'
+    input.setCssStyles({
+      width: `${cover
+        ? Math.max(rect.width, wanted, MIN_EDITOR_WIDTH)
+        : Math.max(wanted, MIN_EDITOR_WIDTH)}px`,
+      // Height: always content-based. The rendered box may include nodeMinHeight
+      // padding or belong to a different anchor node; neither should inflate
+      // the editor.
+      height: 'auto',
+    })
     const height = Math.max(rect.lineHeight ?? 0, input.scrollHeight)
-    input.style.height = height > 0 ? `${height}px` : ''
+    input.setCssStyles({ height: height > 0 ? `${height}px` : '' })
     return rect
   }
 
@@ -466,10 +460,10 @@ function trackPosition(
   observe?: Element,
 ): () => void {
   // markmap starts the transition on the next frame, so add a small buffer.
-  const window = duration + 300
+  const trackWindow = duration + 300
   /** How often the (otherwise idle) position is re-checked. */
   const idle = 200
-  let end = performance.now() + window
+  let end = performance.now() + trackWindow
   let nextIdle = 0
   let frame = 0
   let running = false
@@ -503,17 +497,17 @@ function trackPosition(
         // Still moving (an animation, a pan, a zoom): keep following. A second
         // render can restart the slide without any structural change, so this
         // cannot be a fixed deadline.
-        if (moved) end = now + window
+        if (moved) end = now + trackWindow
       }
     }
-    frame = requestAnimationFrame(tick)
+    frame = window.requestAnimationFrame(tick)
   }
 
   const arm = () => {
-    end = performance.now() + window
+    end = performance.now() + trackWindow
     if (running || !input.isConnected) return
     running = true
-    frame = requestAnimationFrame(tick)
+    frame = window.requestAnimationFrame(tick)
   }
 
   const observer = observe ? new MutationObserver(arm) : undefined
@@ -522,7 +516,7 @@ function trackPosition(
 
   return () => {
     observer?.disconnect()
-    if (frame) cancelAnimationFrame(frame)
+    if (frame) window.cancelAnimationFrame(frame)
     running = false
   }
 }

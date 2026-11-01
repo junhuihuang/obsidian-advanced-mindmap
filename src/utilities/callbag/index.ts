@@ -25,11 +25,11 @@ import { fromCommand } from './from-command'
 import { fromObsidianEvent } from './from-obsidian-event'
 
 
-export type Listener<T> = (data: T) => any
+export type Listener<T> = (data: T) => unknown
 export type Subscriber<T> = {
   next?: Listener<T>,
-  error?: (err: any) => any,
-  complete?: () => any,
+  error?: (err: unknown) => unknown,
+  complete?: () => unknown,
 }
 const subscribe2 = <T>(source: Source<T>, listener: Listener<T> | Subscriber<T>) => pipe(source, subscribe(listener))
 

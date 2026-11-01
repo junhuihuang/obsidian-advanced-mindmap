@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- ambient declarations that mirror untyped browser/Electron/callbag APIs */
+
 
 declare module 'callbag-flat-map' {
   import { Source } from 'callbag'

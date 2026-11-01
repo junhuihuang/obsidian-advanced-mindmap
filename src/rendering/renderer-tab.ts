@@ -6,7 +6,7 @@ import { FileSettings, globalSettings } from 'src/settings/filesystem'
 import { ScreenshotColors, takeScreenshot } from 'src/rendering/screenshot'
 import { createMarkmap, getOptions, transformMarkdown, splitMarkdown } from './renderer-common'
 import { createMindmapEditor } from './editor-wiring'
-import { MindmapTab } from 'src/utilities/types'
+import MindmapView from 'src/views/view'
 import { svgs } from 'src/internal-links/handle-internal-links'
 import { parseSource } from 'src/editing/source-tree'
 import { addTitleToRootNode, expandLevelWithTitle } from './root-title'
@@ -19,7 +19,7 @@ import { latestRenderQueue } from './render-queue'
 
 
 export type TabRenderer = ReturnType<typeof TabRenderer>
-export function TabRenderer(containerEl: MindmapTab.View['containerEl'], leaf: WorkspaceLeaf) {
+export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: WorkspaceLeaf) {
   const contentEl = containerEl.children[1]
   const { svg, markmap } = createMarkmap({ parent: contentEl })
 

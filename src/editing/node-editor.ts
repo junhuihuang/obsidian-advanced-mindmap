@@ -458,7 +458,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       const path = group ? sourcePathOf(group) : undefined
       const overHandle = !!group && !!path && resizeHandleAt(group, path, event.clientX, event.clientY)
       const cursor = overHandle ? 'ew-resize' : ''
-      if (svg.style.cursor !== cursor) svg.style.cursor = cursor
+      if (svg.style.cursor !== cursor) svg.setCssStyles({ cursor })
     }
   }
 
@@ -567,7 +567,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     const start = state.link.getPointAtLength(0)
     const end = treePoint(x, y)
 
-    state.band = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    state.band = createSvg('path')
     state.band.classList.add('markmap-link', 'advmm-drag-link')
     state.band.setAttribute('fill', 'none')
     state.band.setAttribute('stroke', style.stroke || style.color || 'currentColor')
@@ -612,7 +612,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   }
 
   /** Finishes a node drag; returns true when the node was actually moved. */
-  function finishNodeDrag(x: number, y: number): boolean {
+  function finishNodeDrag(_x: number, _y: number): boolean {
     const state = drag
     const target = dropTarget
     if (!state) return false
@@ -676,7 +676,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       active: false,
       width: 0,
     }
-    svg.style.cursor = 'ew-resize'
+    svg.setCssStyles({ cursor: 'ew-resize' })
     return true
   }
 
@@ -749,7 +749,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
 
     const width = clampNodeWidth(resize.startWidth + dx / resize.scale)
     resize.width = width
-    resize.label.style.width = `${width}px`
+    resize.label.setCssStyles({ width: `${width}px` })
     syncResizeBox(resize.label)
     scheduleResizeLayout()
   }
@@ -779,7 +779,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       beginLiveLayout?.()
     }
     keyResize.width = width
-    label.style.width = `${width}px`
+    label.setCssStyles({ width: `${width}px` })
     syncResizeBox(label)
     scheduleResizeLayout()
   }
@@ -810,7 +810,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     resize = null
     stopResizeLayout()
     container?.removeClass('advmm-resizing')
-    svg.style.cursor = ''
+    svg.setCssStyles({ cursor: '' })
     if (!state.active) return false
 
     if (setNodeWidth) setNodeWidth(state.key, state.width)
@@ -834,13 +834,12 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     resize = null
     stopResizeLayout()
     container?.removeClass('advmm-resizing')
-    svg.style.cursor = ''
+    svg.setCssStyles({ cursor: '' })
     refreshNodeWidths()
   }
 
   function beginMarquee(x: number, y: number) {
-    const element = document.createElement('div')
-    element.addClass('advmm-marquee')
+    const element = createDiv('advmm-marquee')
     document.body.appendChild(element)
     marquee = { startX: x, startY: y, active: false, element }
   }
@@ -856,10 +855,12 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       marquee.active = true
     }
 
-    marquee.element.style.left = `${Math.min(marquee.startX, x)}px`
-    marquee.element.style.top = `${Math.min(marquee.startY, y)}px`
-    marquee.element.style.width = `${Math.abs(dx)}px`
-    marquee.element.style.height = `${Math.abs(dy)}px`
+    marquee.element.setCssStyles({
+      left: `${Math.min(marquee.startX, x)}px`,
+      top: `${Math.min(marquee.startY, y)}px`,
+      width: `${Math.abs(dx)}px`,
+      height: `${Math.abs(dy)}px`,
+    })
 
     previewMarquee(pathsInRect(marquee.startX, marquee.startY, x, y))
   }
@@ -1538,14 +1539,6 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     }
   }
 
-  function sourceNode(path: number[]): SourceNode | undefined {
-    try {
-      return getNodeAtPath(sourceRoots(), path)
-    } catch {
-      return undefined
-    }
-  }
-
   function selectOnly(path: number[] | null) {
     setSelection(path ? [path] : [])
   }
@@ -1754,7 +1747,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     zoomHold = { action, anchor, keepVisible }
     zoomBy?.(action === 'in' ? ZOOM_STEP : 1 / ZOOM_STEP, anchor, keepVisible)
     zoomLastTime = performance.now()
-    if (zoomFrame === null) zoomFrame = requestAnimationFrame(stepZoom)
+    if (zoomFrame === null) zoomFrame = window.requestAnimationFrame(stepZoom)
   }
 
   /** One animation frame of a held zoom. */
@@ -1767,14 +1760,14 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     const seconds = Math.min((now - zoomLastTime) / 1000, 0.1)
     zoomLastTime = now
     zoomBy?.(holdZoomFactor(seconds, hold.action === 'in'), hold.anchor, hold.keepVisible)
-    zoomFrame = requestAnimationFrame(stepZoom)
+    zoomFrame = window.requestAnimationFrame(stepZoom)
   }
 
   /** Stops a held zoom (key released, focus lost or editor destroyed). */
   function stopZoom() {
     zoomHold = null
     if (zoomFrame !== null) {
-      cancelAnimationFrame(zoomFrame)
+      window.cancelAnimationFrame(zoomFrame)
       zoomFrame = null
     }
   }
@@ -1936,7 +1929,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (duration <= 0) {
       fitContent?.()
     } else {
-      setTimeout(() => fitContent?.(), duration)
+      window.setTimeout(() => fitContent?.(), duration)
     }
   }
 
@@ -1948,7 +1941,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     for (const { key, action } of FOLD_HINTS) {
       const row = foldHint.createDiv('advmm-key-hint-row')
       row.createEl('kbd', { text: key })
-      row.createEl('span', { text: FOLD_HINT_LABELS[action] })
+      row.createSpan({ text: FOLD_HINT_LABELS[action] })
     }
     foldHint.removeClass('advmm-hidden')
   }
@@ -2007,7 +2000,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     // Focusing inside the keydown can be undone once the event finishes (the
     // view re-focuses its container, the IME activates, ...). Assert it again
     // on the next frame so the caret really stays in the query.
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       if (searchActive && searchEditing && !searchComposing && searchInput?.isConnected) focusSearchInputAtEnd()
     })
     runSearch(input.value)
@@ -2039,13 +2032,13 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     // elsewhere, hand the caret straight back so the query keeps receiving keys.
     input.addEventListener('focusout', () => {
       if (!searchActive || !searchEditing || searchComposing) return
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         if (searchActive && searchEditing && !searchComposing && input.isConnected) focusSearchInputAtEnd()
       })
     })
     searchInput = input
-    searchCount = searchBar.createEl('span', { cls: 'advmm-search-count' })
-    searchBar.createEl('span', { cls: 'advmm-search-hint', text: strings.nodeEditor.searchHint })
+    searchCount = searchBar.createSpan({ cls: 'advmm-search-count' })
+    searchBar.createSpan({ cls: 'advmm-search-hint', text: strings.nodeEditor.searchHint })
   }
 
   /** Closes the search bar and clears the search highlighting. */
@@ -2371,7 +2364,6 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     const beforeFlat = flattenPaths(beforeRoots)
     const afterFlat = flattenPaths(afterRoots)
     const beforePathKeys = new Set(beforeFlat.map(pathKey))
-    const afterPathKeys = new Set(afterFlat.map(pathKey))
 
     const nodeCountBefore = beforeFlat.length
     const nodeCountAfter = afterFlat.length
@@ -2655,11 +2647,13 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (target && target.position !== 'child') {
       const geometry = dropLineGeometry(target, collectDropBoxes())
       if (geometry) {
-        dropLine = document.createElement('div')
+        dropLine = createDiv()
         dropLine.addClass('advmm-drop-line')
-        dropLine.style.left = `${geometry.x}px`
-        dropLine.style.top = `${geometry.y}px`
-        dropLine.style.width = `${geometry.width}px`
+        dropLine.setCssStyles({
+          left: `${geometry.x}px`,
+          top: `${geometry.y}px`,
+          width: `${geometry.width}px`,
+        })
         document.body.appendChild(dropLine)
       }
     }

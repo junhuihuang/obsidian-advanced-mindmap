@@ -231,7 +231,7 @@ export function contentZoomAnchor(markmap: Markmap): ZoomAnchor | undefined {
 
 
 export function createMarkmap({ parent }: { parent: ParentNode }): { svg: SVGSVGElement, markmap: Markmap } {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  const svg = createSvg('svg')
   const markmap = Markmap.create(svg, { embedGlobalCSS: false })
   // Tame Ctrl+wheel: d3-zoom's 10x ctrl boost is meant for trackpad pinch, but
   // makes a mouse-wheel notch jump ~4x. See ./zoom.
@@ -239,7 +239,7 @@ export function createMarkmap({ parent }: { parent: ParentNode }): { svg: SVGSVG
   // Allow right-button drag to pan. d3-zoom (and markmap) reserve the right
   // button for the context menu; we keep that menu but suppress it after a real
   // drag in the node editor.
-  const baseFilter = markmap.zoom.filter() as unknown as (event: any) => boolean
+  const baseFilter = markmap.zoom.filter() as unknown as (event: MouseEvent) => boolean
   markmap.zoom.filter((event: MouseEvent) =>
     event.type === 'mousedown' && event.button === 2 ? !event.ctrlKey : baseFilter(event))
   parent.append(svg)

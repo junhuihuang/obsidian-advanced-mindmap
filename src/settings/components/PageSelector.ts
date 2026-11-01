@@ -5,7 +5,7 @@ import { strings } from 'src/translation'
 
 type Level = 'global' | 'file' | 'codeBlock'
 export const PageSelector = (initialPage: Level, pages: Record<Level, () => Component>) => (parent: Node) => {
-  const selector = new Setting(createFragment())
+  const selector = new Setting(createDiv())
   const pageContainer = div([], 'advmm-main')
 
   const buttons = Object.fromEntries(

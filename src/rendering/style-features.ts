@@ -1,6 +1,5 @@
 import { globalSettings, settingChanges } from 'src/settings/filesystem'
 import Callbag from 'src/utilities/callbag'
-import { globalStyle, settingTriggers as t } from './style-tools'
 
 
 const { source: renderCodeblocks$, push: renderCodeblocks } = Callbag.subject<void>()
@@ -8,35 +7,24 @@ const { source: renderTabs$, push: renderTabs } = Callbag.subject<void>()
 export { renderCodeblocks$, renderTabs$ }
 const renderAll = () => { renderTabs(); renderCodeblocks() }
 
+/**
+ * Line thickness is a plain number per depth. The rules that use it live in
+ * `styles.css`; only the values are written here, as CSS variables, so the
+ * plugin never has to create a `<style>` element.
+ */
+function applyLineStyles() {
+  document.body.setCssProps({
+    '--advmm-line-thickness': String(globalSettings.defaultThickness),
+    '--advmm-line-thickness-depth1': String(globalSettings.depth1Thickness),
+    '--advmm-line-thickness-depth2': String(globalSettings.depth2Thickness),
+    '--advmm-line-thickness-depth3': String(globalSettings.depth3Thickness),
+  })
+}
+
 export function loadStyleFeatures() {
-  globalStyle.registerStyleElement()
-  lineThickness()
-  lineHeight()
-}
-
-async function lineThickness() {
-  globalStyle.add(t.defaultThickness, () => `
-    .markmap path.markmap-link,
-    .markmap g.markmap-node line {
-      stroke-width: ${globalSettings.defaultThickness} }`)
-
-  globalStyle.add(t.depth1Thickness, () => `
-    .markmap g[data-depth="0"].markmap-node line {
-      stroke-width: ${globalSettings.depth1Thickness} }`)
-
-  globalStyle.add(t.depth2Thickness, () => `
-    .markmap path.markmap-link[data-depth="1"],
-    .markmap    g.markmap-node[data-depth="1"] line {
-      stroke-width: ${globalSettings.depth2Thickness} }`)
-
-  globalStyle.add(t.depth3Thickness, () => `
-    .markmap path.markmap-link[data-depth="2"],
-    .markmap    g.markmap-node[data-depth="2"] line {
-      stroke-width: ${globalSettings.depth3Thickness} }`)
-}
-
-async function lineHeight() {
-  globalStyle.add(t.lineHeight, () => `:root { --mm-line-height: ${globalSettings.lineHeight} }`)
+  applyLineStyles()
+  for (const key of ['defaultThickness', 'depth1Thickness', 'depth2Thickness', 'depth3Thickness'] as const)
+    settingChanges.listen(key, applyLineStyles)
 }
 
 

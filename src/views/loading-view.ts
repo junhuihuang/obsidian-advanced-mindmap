@@ -22,8 +22,8 @@ export class LoadingView extends ItemView {
     delete LoadingView.instances[LoadingView.instances.indexOf(this)]
   }
 
-  public static isLoadingView(x: any): x is LoadingView {
-    return typeof x === 'object'
+  public static isLoadingView(x: unknown): x is LoadingView {
+    return typeof x === 'object' && x !== null
         && 'isLoadingView' in x
         && x.isLoadingView === true
   }

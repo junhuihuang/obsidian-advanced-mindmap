@@ -24,12 +24,14 @@ type FlatSubject =
 | { type: 'pinned', path: TFile['path'] }
 
 export const layoutManager = {
-  serialise: () => layout.save({ version: 1, root: serialise(getApp().workspace.rootSplit) }),
+  serialise: () => layout.save({ version: 1, root: serialise(getApp().workspace.rootSplit) as Tree }),
   deserialise,
   renderVisible: () => renderVisible(getApp().workspace.rootSplit),
 }
 
-function serialise(node: Node): any {
+type Serialised = FlatSubject | null | Serialised[]
+
+function serialise(node: Node): Serialised {
   if ('children' in node) return node.children.map(child => serialise(child as Node))
   if (node.view.getViewType() !== MM_VIEW_TYPE) return null
   const subject = views.get(node.view as MindmapView)
