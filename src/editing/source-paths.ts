@@ -69,10 +69,18 @@ export function tagSourcePaths(root: IPureNode, roots: SourceNode[]): void {
     const isParagraphContainer = content === '' && node !== root && node.children.length > 0
       && sourceLine(node.children[0]) === line
 
-    if (path && !isParagraphContainer && (content !== '' || node !== root)) {
+    // markmap promotes a document's top-level list wrapper (`ul`/`ol`) to the
+    // root node, and it fills a textless root with the frontmatter `title:`. That
+    // text is a label, not a line of the document, so the wrapper must not take
+    // the path of its first item - the visible root and that item would share a
+    // path, and selecting the title would highlight the item below it instead.
+    const isListWrapperRoot = node === root
+      && (node.payload?.tag === 'ul' || node.payload?.tag === 'ol')
+
+    if (!isListWrapperRoot && path && !isParagraphContainer && (content !== '' || node !== root)) {
       node.payload = { ...node.payload, [SOURCE_PATH_KEY]: path }
     }
-    else if (content !== '') {
+    else if (!isListWrapperRoot && content !== '') {
       entries ??= flattenSource(roots)
       for (let i = cursor; i < entries.length; i++) {
         if (normalizeText(entries[i].node.text) !== content) continue

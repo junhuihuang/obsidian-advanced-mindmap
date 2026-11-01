@@ -1,6 +1,6 @@
 import type { IPureNode } from 'markmap-common'
 
-import { tagSyntheticRoot } from 'src/editing/source-paths'
+import { getSourcePath, tagSyntheticRoot } from 'src/editing/source-paths'
 
 /**
  * Puts the note's name above the markdown's own root node.
@@ -24,6 +24,14 @@ export function addTitleToRootNode(root: IPureNode, title: string): IPureNode {
     root.content = title
     return root
   }
+
+  // markmap fills a textless root with the frontmatter `title:`, so the root can
+  // carry text while still being a synthetic container: it has no line of the
+  // document (it was tagged with the empty path). Its text already is the note's
+  // title, and wrapping it would draw that name twice - the wrapper and the
+  // document root would also share the empty source path, so clicking the title
+  // highlighted the node underneath it instead.
+  if (getSourcePath(root)?.length === 0) return root
 
   return tagSyntheticRoot({ content: title, children: [root] })
 }

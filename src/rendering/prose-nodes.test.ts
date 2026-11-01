@@ -30,6 +30,19 @@ function children(node: IPureNode) {
   }))
 }
 
+/** Every source path in the rendered tree, as a sortable string. */
+function paths(node: IPureNode, result: string[] = []): string[] {
+  const path = getSourcePath(node)
+  if (path) result.push(path.join('.'))
+  node.children.forEach(child => paths(child, result))
+  return result
+}
+
+function images(node: IPureNode): number {
+  const own = (node.content.match(/<img/g) ?? []).length
+  return own + node.children.reduce((sum, child) => sum + images(child), 0)
+}
+
 describe('prose paragraphs as parents', () => {
   it('turns a paragraph before a list into a node with the list items as children', () => {
     const root = render('下午临时参加了汇报。\n- 世界模型\n- AI Infra\n')
@@ -149,6 +162,43 @@ describe('prose paragraphs as parents', () => {
       { text: 'a', path: [0], children: [] },
       { text: 'After the list.', path: [1], children: [] },
     ])
+  })
+
+  it('keeps an image paragraph as a single node, not one per rendering', () => {
+    const root = render('# Root\n\n![](https://example.com/a.png)\n')
+
+    expect(children(root)).toEqual([
+      { text: '', path: [0, 0], children: [] },
+    ])
+    expect(images(root)).toBe(1)
+  })
+
+  it('draws every line of an article with images exactly once', () => {
+    const root = render([
+      '## Section',
+      'Some prose.',
+      '',
+      '![](https://example.com/a.png)',
+      '',
+      '- item',
+      '',
+      '![](https://example.com/b.png)',
+      '',
+      '## Next',
+      'More prose.',
+      '',
+    ].join('\n'))
+
+    const rendered = paths(root).sort()
+    expect(new Set(rendered).size).toBe(rendered.length)
+    expect(images(root)).toBe(2)
+  })
+
+  it('keeps the text next to an image in the paragraph', () => {
+    const root = render('# Root\n\n![](https://example.com/a.png) caption\n')
+
+    expect(normalizeContent(root.children[0].content)).toBe('caption')
+    expect(root.children[0].content).toContain('<img')
   })
 
   it('renders inline markdown and wikilinks in the paragraph', () => {

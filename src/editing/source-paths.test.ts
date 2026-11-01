@@ -23,6 +23,29 @@ describe('tagSourcePaths', () => {
     expect(getSourcePath(root.children[0])).toBeUndefined()
   })
 
+  it('leaves a list-wrapper root untagged, even when the frontmatter title named it', () => {
+    // markmap promotes a top-level `ul` to the root and fills its empty content
+    // with the frontmatter `title:`. Its `data-lines` start on the first item's
+    // line, so tagging it by line would give it the first item's path.
+    const markdown = '---\ntitle: My note\n---\n\n- a\n- b\n'
+    const root = withLines(mm('My note', [withLines(mm('a'), '4,5'), withLines(mm('b'), '5,6')]), '4,6')
+    root.payload = { ...root.payload, tag: 'ul' }
+    tagSourcePaths(root, parseSource(markdown))
+
+    expect(getSourcePath(root)).toEqual([])
+    expect(getSourcePath(root.children[0])).toEqual([0])
+    expect(getSourcePath(root.children[1])).toEqual([1])
+  })
+
+  it('tags a heading root by its line, because a heading is a document node', () => {
+    const markdown = '---\ntitle: My note\n---\n\n# A\n'
+    const root = withLines(mm('A'), '4,5')
+    root.payload = { ...root.payload, tag: 'h1' }
+    tagSourcePaths(root, parseSource(markdown))
+
+    expect(getSourcePath(root)).toEqual([0])
+  })
+
   it('tags a single root node', () => {
     const root = mm('Root', [mm('A')])
     tagSourcePaths(root, parseSource('# Root\n## A'))

@@ -18,6 +18,34 @@ function startLine(node: IPureNode): number {
   return Number.parseInt(String(node.payload?.lines).split(',')[0], 10)
 }
 
+describe('one source path per rendered node', () => {
+  const cases: [name: string, markdown: string][] = [
+    ['flat list with a frontmatter title', '---\ntitle: My note\n---\n\n- a\n  - a1\n- b\n'],
+    ['headings with a frontmatter title', '---\ntitle: My note\n---\n\n# A\n## A1\n# B\n'],
+    ['prose, image and list with a frontmatter title', '---\ntitle: My note\n---\n\nIntro.\n\n![](a.png)\n\n- item\n'],
+  ]
+
+  for (const [name, markdown] of cases) {
+    it(`tags every rendered node at most once (${name})`, () => {
+      const { root } = transformer.transform(markdown)
+      tagSourcePaths(root, parseSource(markdown))
+
+      // Two nodes sharing a path make the editor resolve it to whichever comes
+      // last in the DOM, so selecting one highlighted the other. Every node that
+      // has a path must therefore be the only one with it.
+      const seen = new Set<string>()
+      walkPreOrder(root, node => {
+        const path = getSourcePath(node)
+        if (!path) return
+
+        const key = pathKey(path)
+        expect(seen.has(key)).toBe(false)
+        seen.add(key)
+      })
+    })
+  }
+})
+
 describe('tagSourcePaths integration with markmap-lib', () => {
   const cases: [name: string, markdown: string][] = [
     ['headings', '# Root\n## A\n### A1\n## B'],
@@ -84,6 +112,21 @@ describe('tagSourcePaths integration with markmap-lib', () => {
 
     const b = root.children.find(child => normalizeContent(child.content) === 'B')!
     expect(getSourcePath(b)).toEqual([0, 1])
+  })
+
+  it('leaves a list-wrapper root untagged instead of giving it its first item path', () => {
+    // markmap promotes a document's top-level `ul` to the root and fills its
+    // empty content with the frontmatter `title:`. Its `data-lines` start on the
+    // first item's line, so tagging it by line would make the visible root and
+    // that item share a path: selecting the title highlighted the item.
+    const markdown = '---\ntitle: My note\n---\n\n- a\n  - a1\n- b\n'
+    const { root } = transformer.transform(markdown)
+    tagSourcePaths(root, parseSource(markdown))
+
+    expect(normalizeContent(root.content)).toBe('My note')
+    expect(getSourcePath(root)).toEqual([])
+    expect(getSourcePath(root.children[0])).toEqual([0])
+    expect(getSourcePath(root.children[1])).toEqual([1])
   })
 
   it('leaves a prose paragraph container untagged instead of giving it its first child path', () => {

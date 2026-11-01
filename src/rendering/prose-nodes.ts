@@ -85,7 +85,11 @@ export function insertProseNodes(root: IPureNode, roots: SourceNode[], renderInl
       .filter(index => index >= 0)
     const insertAt = positions.length > 0 ? Math.min(...positions) : insertionIndex(parent, path)
 
-    const paragraph = makeParagraph(node, path, children, renderInline)
+    // markmap renders a paragraph whose only content is an image as a node of
+    // its own (`p>img:only-child`). That node *is* the paragraph: adding the
+    // paragraph next to it would draw the same line of the document twice.
+    const own = byPath.get(pathKey(path))
+    const rendered = own && parent.children.includes(own) ? own : undefined
 
     for (const child of children) detach(parent, child)
     for (const top of tops) {
@@ -94,6 +98,17 @@ export function insertProseNodes(root: IPureNode, roots: SourceNode[], renderInl
       if (top.children.length === 0) parent.children.splice(parent.children.indexOf(top), 1)
     }
 
+    // Reuse the rendered node in place: it already sits at the paragraph's
+    // source position. Its content is re-rendered from the whole paragraph so
+    // text next to the image (which markmap drops) stays visible.
+    if (rendered) {
+      rendered.content = renderInline(node.text)
+      rendered.children = children
+      byPath.set(pathKey(path), rendered)
+      continue
+    }
+
+    const paragraph = makeParagraph(node, path, children, renderInline)
     parent.children.splice(insertAt, 0, paragraph)
     byPath.set(pathKey(path), paragraph)
   }

@@ -847,3 +847,56 @@ markmap-view 的 `maxWidth` 是**全局选项**，写在 `<svg>` 的 `--markmap-
 ### 教训
 - 遇到「保留行为 + 消除废弃警告」的需求，优先用**字符串键安装/读取**（`Object.defineProperty`、`Reflect.get`），避免编译器把名字解析到废弃声明上；这比全局关规则精确得多。
 - `any` 转具体类型时，审核可能认为 `as` 多余；用**变量类型注解**替代断言，既满足类型检查也满足规则。
+
+---
+
+## 36. 图片节点重复：markmap 自己也会渲染「纯图片段落」
+
+### 教训
+`insertProseNodes` 假设「markmap 只渲染标题、列表、代码块、表格，其余段落都要我们补」。但 markmap 的
+默认 selector 是 `h1..h6,ul,ol,li,table,pre,p>img:only-child`（见
+`node_modules/markmap-html-parser` 的 `defaultOptions`）：**整个段落只有一个 `<img>` 时，markmap 已经把它渲染成一个节点**。
+于是同一个 source path 上有了两个节点（markmap 渲染的 + 我们插入的），画布上图片节点就重复了。
+
+### 正确做法
+- `insertProseNodes` 处理每个 paragraph 前先查 `byPath.get(pathKey(path))`：
+  - 有（markmap 已渲染）→ **复用该节点**，位置不动（markmap 已按源码顺序摆放），只把段落的渲染子节点挂上去，并把
+    `content` 用整段文本 `renderInline` 重渲染（图片旁边的说明文字 markmap 会丢掉）；
+  - 没有 → 才 `makeParagraph` 插入。
+- 不要「删掉再重建」：复用保留了 DOM、`payload.lines` 和已有的折叠状态。
+
+### 排查方法
+- 不要凭印象猜 markmap 渲染了什么。直接跑一遍：
+  `node -e "const {Transformer}=require('markmap-lib'); ..."`，把 `transform(md)` 的树 dump 出来。
+- 写测试时断言**路径唯一**，比逐个断言节点更早暴露重复：
+  ```ts
+  const rendered = paths(root).sort()
+  expect(new Set(rendered).size).toBe(rendered.length)
+  ```
+
+---
+
+## 37. 根节点重复：`frontmatter title` 会填进 markmap 的根节点
+
+### 现象
+`Clippings/Learning the Bitter Lesson.md` 的 mindmap 出现「根节点下面有一个同名节点」，点根节点却高亮的是下面那个。
+
+### 根因（两层）
+1. **markmap 会用 `frontmatter.title` 填充没有文本的根节点**：`root.content ||= frontmatter.title`。
+   文章没有 H1，markmap 的根是渲染用的合成容器（`content` 本来为空），于是根显示了 frontmatter 的 title。
+   `addTitleToRootNode` 只判断 `root.content === ''`，看到有文本就当成「文档自己的根节点」，于是又包一层文件名 → **同名两层**。
+2. **包装层和里面的根共享同一个 source path `[]`**（包装层 `tagSyntheticRoot`，里面的根由 `tagSourcePaths`
+   兜底成 `[]`）。`node-editor` 的 `domIndex().byPath` 是后写覆盖，DOM 里子节点在后 → `findGroupByPath([])`
+   解析到里层，于是**选中根节点高亮的是里层那个同名节点**。
+
+### 正确做法
+- 判断「渲染专用根」不要看 `content` 是否为空，要看**它有没有文档行**：`getSourcePath(root)?.length === 0`
+  （无行 = 合成容器/标题容器）。这种根就地写上标题、不再包一层，并保留 frontmatter 已有的标题文本。
+- `tagSourcePaths` 里 **`ul`/`ol` 作为根节点时永远不给它文档路径**（`payload.tag` 判断）：它的内容只可能是
+  frontmatter title，而它的 `data-lines` 从第一个列表项开始，按行打标签会让根和第一个列表项共享路径。
+  这与 `isParagraphContainer` 是同一类问题（容器节点不能抢子节点的路径）。
+
+### 通用规则
+- **一个 source path 只能对应一个渲染节点**。重复路径的后果是静默的（`byPath` 后者胜）：选中/编辑/折叠全都
+  作用在另一个节点上。写测试时直接断言路径唯一（见 `source-paths.integration.test.ts` 的
+  “one source path per rendered node”）。
