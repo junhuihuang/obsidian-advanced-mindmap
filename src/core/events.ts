@@ -7,6 +7,7 @@ import views from 'src/views/views'
 import { fromCommand, fromObsidianEvent } from 'src/utilities/callbag'
 import MindmapTabView from 'src/views/view'
 import { strings } from 'src/translation'
+import { hideStatusBarClass, syncStatusBar } from 'src/views/status-bar'
 
 
 export const start = Callbag.create<void>(
@@ -63,5 +64,13 @@ Callbag.subscribe(isDarkMode, isDarkMode => {
 })
 
 Callbag.subscribe(renderTabs$, () => views.renderAll())
+
+// The status bar reports the markdown file's backlinks / properties / word
+// count, so it is hidden while a mindmap is the active view.
+const workspace = getApp().workspace
+plugin.registerEvent(workspace.on('active-leaf-change', () => syncStatusBar(workspace)))
+plugin.registerEvent(workspace.on('layout-change', () => syncStatusBar(workspace)))
+plugin.register(() => document.body.classList.remove(hideStatusBarClass))
+syncStatusBar(workspace)
 
 void import('src/views/event-listeners')

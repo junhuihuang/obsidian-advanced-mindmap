@@ -61,6 +61,24 @@ syntax highlighting, preview — is redone for every host feature and always end
 - Close with `leaf.detach()` and listen to `layout-change` to resync the button, so it
   does not stay lit after the user closes the split manually.
 
+## Hide host chrome with a body class, not with a descendant selector
+
+**The status bar is not inside the leaf.** `.status-bar` is a sibling of the
+workspace, and its content (backlinks / properties / word count) describes the
+**active leaf's file** — it says nothing about the map.
+
+**Do** toggle one body class from `active-leaf-change` **and** `layout-change`
+(`layout-change` covers `setViewState` replacing a view in the already-active leaf).
+Decide with `workspace.getActiveViewOfType(ItemView)?.getViewType()`, which sees both
+the finished view and the transient `LoadingView`; `workspace.activeLeaf` is deprecated
+(`no-deprecated`), and the leaf field it points at was the reason a naive
+`instanceof MindmapView` check missed the loading state. Keep the sync idempotent
+(`classList.toggle`) so it needs no previous-state tracking, and remove the class in a
+`plugin.register()` cleanup.
+
+**Don't** try `.workspace-leaf:has(…) .status-bar` — `:has()` is forbidden in this
+repo, and no ancestor of the status bar carries the active view type.
+
 ## Persisting the split layout: walk the whole tree
 
 **Do** traverse the **entire** `app.workspace.rootSplit` tree — not just one pane's
