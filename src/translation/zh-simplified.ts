@@ -15,6 +15,7 @@ export default {
     zoomIn: '放大',
     zoomOut: '缩小',
     fit: '适应窗口大小',
+    headingStyles: '标题使用预览字号',
   },
   fileSettingsButton: '文件级别设置',
   blockSettingsButton: '代码框级别设置',

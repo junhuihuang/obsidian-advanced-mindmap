@@ -62,6 +62,12 @@ export default class MindmapView extends ItemView {
     // Keep the glyph the old markmap toolbar used for this button.
     setMarkdownSourceIcon(markdownSource)
     this.addAction('maximize', strings.viewActions.fit, fit)
+    // A per-canvas switch: a deep map fits far more nodes when its headings are
+    // drawn at body size. Added after `fit` because actions are prepended.
+    const headingStyles = this.addAction('heading', strings.viewActions.headingStyles, () => {
+      headingStyles.classList.toggle('is-active', this.renderer.toggleHeadingStyles())
+    })
+    headingStyles.classList.add('is-active')
     this.addAction('zoom-out', strings.viewActions.zoomOut, zoomOut)
     this.addAction('zoom-in', strings.viewActions.zoomIn, zoomIn)
 

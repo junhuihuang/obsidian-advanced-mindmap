@@ -15,6 +15,7 @@ English | [简体中文](README.zh-CN.md)
 - **Fast on large maps.** Nodes are updated incrementally, so the view stays stable while you type.
 - **Native to Obsidian.** Pinned and unpinned mindmap tabs, plus inline `markmap` code blocks inside notes.
 - **Markdown-native.** Headings, lists, checkboxes, tables, internal links, LaTeX and syntax-highlighted code render as nodes.
+- **Preview-style headings.** Every heading keeps the size and weight of its Markdown level, so the canvas reads like the preview of the same note. No badges or extra markers are added to the text: lists and prose stay at the body size. The header button left of *Fit window size* flattens the headings of the current canvas, for maps that need to fit a lot of nodes.
 
 ## Installation
 

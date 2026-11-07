@@ -22,6 +22,7 @@ export default {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fit: 'Fit window size',
+    headingStyles: 'Headings at preview size',
   },
   fileSettingsButton: 'Edit mindmap settings',
   blockSettingsButton: 'Edit block settings',

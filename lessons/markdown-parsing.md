@@ -84,3 +84,35 @@ the root have text?", saw the heading and wrapped `file.basename` around it.
 **Why not "any top-level heading".** Several `#` headings produce a synthetic textless
 root (`markmap` cannot pick one); that root has no title of its own and is named in
 place, which is the wanted result.
+
+## markmap drops a list/table/code block that sits before a `##`-level heading
+
+**Symptom.** `# A` / `- item` / `## B` renders only `A → B`. The list item is missing
+from the canvas *and* from `transform()`'s tree, so it has no source path and cannot be
+selected, edited or searched. Same for a table or code block in that position, and for
+any heading level 2–6 (`##`…`######`); a following `#` heading keeps the nodes.
+
+**Root cause (upstream, `markmap-html-parser` 0.18.11).** `addChild` keeps a
+`childrenLevel` per parent and resets `parent.children = []` when a child arrives with a
+*lower* level:
+
+```js
+if (parent2.childrenLevel === 0 || parent2.childrenLevel > node.level) {
+  parent2.children = []
+  parent2.childrenLevel = node.level
+}
+```
+
+Lists and list items are pseudo-levels 8/9, a heading is 1–6, so the `h2` wipes the
+`ul` that was already collected under the `h1`. Same-level headings (`h2` after `h2`)
+compare equal and survive, which is why this only shows up on level changes.
+
+**Do**
+
+- When testing or writing docs, put the lists *after* the last heading: `# Title`,
+  `## Section`, prose, then `- items`.
+- Treat a rendered tree as **not** a superset of the source tree; never infer "markmap
+  rendered it" from the markdown.
+
+**Don't** assume a missing node means a bad `tagSourcePaths` mapping — dump
+`transform(md)` first and check whether the node is there at all.

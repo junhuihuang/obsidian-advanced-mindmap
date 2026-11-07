@@ -74,6 +74,16 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     zoomOut: () => void markmap.rescale(0.8),
     fit: () => void markmap.fit(),
     toggleMarkdownSource: () => void markdownSplit.toggle(),
+    /**
+     * Flattens every heading of this canvas to body size, and back. The class is
+     * all it takes: markmap watches each label with a `ResizeObserver` and
+     * re-lays out the tree when its box changes.
+     */
+    toggleHeadingStyles: () => {
+      const on = !svg.classList.contains('advmm-heading-styles')
+      svg.classList.toggle('advmm-heading-styles', on)
+      return on
+    },
     /** Called with `true`/`false` as the markdown split opens or closes. */
     onMarkdownSourceChange: (listener: (open: boolean) => void) => {
       markdownSourceListener = listener

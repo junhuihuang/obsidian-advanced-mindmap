@@ -57,6 +57,30 @@ body.advmm-hide-status-bar .status-bar { display: none }
 }
 
 
+/* Headings keep the size and weight of their Markdown level (tagged in
+   `src/rendering/node-headings.ts`), so the canvas reads like the preview.
+   Nothing is added to the node text: lists and prose stay body text, and
+   markmap's own `1. ` prefix is the only thing an ordered item gets.
+
+   The `advmm-heading-styles` class is set on the markmap `<svg>` when it is
+   created; the header button of a mindmap tab removes it to flatten that one
+   canvas, so the rules stay off until it is put back. */
+.advmm-heading-styles .markmap-node[data-advmm-h] .markmap-foreign > div > div {
+    /* `--markmap-font` fixes the line height at 20px, which a 1.8em heading
+       would clip. */
+    line-height: 1.25;
+}
+
+/* Obsidian's own heading scale (`--h1-size` … `--h6-size`), in `em` so the map
+   keeps its proportions when zoomed. */
+.advmm-heading-styles .markmap-node[data-advmm-h='1'] .markmap-foreign > div > div { font-size: 1.8em; font-weight: 700 }
+.advmm-heading-styles .markmap-node[data-advmm-h='2'] .markmap-foreign > div > div { font-size: 1.6em; font-weight: 700 }
+.advmm-heading-styles .markmap-node[data-advmm-h='3'] .markmap-foreign > div > div { font-size: 1.42em; font-weight: 600 }
+.advmm-heading-styles .markmap-node[data-advmm-h='4'] .markmap-foreign > div > div { font-size: 1.27em; font-weight: 600 }
+.advmm-heading-styles .markmap-node[data-advmm-h='5'] .markmap-foreign > div > div { font-size: 1.13em; font-weight: 600 }
+.advmm-heading-styles .markmap-node[data-advmm-h='6'] .markmap-foreign > div > div { font-size: 1em; font-weight: 600 }
+
+
 /* Inline mindmaps */
 
 .block-language-markmap { border-radius: 5px }

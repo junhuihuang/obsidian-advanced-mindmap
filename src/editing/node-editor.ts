@@ -16,6 +16,7 @@ import { collectSearchNodes, findMatches, isQueryEmpty, stepIndex } from './sear
 import { applyEdit, flattenPaths, getNodeAtPath, moveNode, moveNodes, parseSource, pathAtLine, pathKey, pathRange, removeNodes as removeSourceNodes, rootChildTarget, samePath, type EditOperation, type SourceNode } from './source-tree'
 import { isDoubleTap, movedBeyondThreshold, tapAction, LONG_PRESS_MS, type TapPoint } from './touch'
 import { applyNodeWidths, clampNodeWidth, nodeLabel, nodeWidth, nodeWidthKey } from 'src/rendering/node-widths'
+import { applyHeadingLevels } from 'src/rendering/node-headings'
 import type { NodeWidths } from 'src/settings/filesystem'
 import type { TreeChangeListener, TreeEdit } from 'src/rendering/tree-updater'
 import { holdZoomFactor, ZOOM_STEP, type ZoomAnchor, type ZoomRect } from 'src/rendering/zoom'
@@ -1261,14 +1262,22 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       // The connectors may be new elements too, so they are marked again.
       focusLinksKey = ''
     }
-    if (highlightScheduled || (selectedPaths.length === 0 && !clipboard && !searchActive)) return
+    if (highlightScheduled) return
+    const highlighted = selectedPaths.length > 0 || !!clipboard || searchActive
     highlightScheduled = true
     queueMicrotask(() => {
       highlightScheduled = false
-      applyHighlight()
+      // Heading sizes hang off a DOM attribute, and a render adds nodes without
+      // it: restore it even when nothing is selected, or a freshly opened map
+      // shows every heading at body size until the first click.
+      applyHeadingLevels(groups())
+      if (highlighted) applyHighlight()
     })
   })
   observer.observe(svg, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+  // The observer only reports changes; a map rendered before the editor was
+  // attached carries no attribute to report.
+  applyHeadingLevels(groups())
 
   // ---- mobile action bar ---------------------------------------------------
 

@@ -88,6 +88,10 @@ triggers a **second** `renderData()` ~100 ms later, wiping the class again.
   microtasks, and the frame-merge that `rAF` provides is not needed here.
 - Write only changed classes (`classList.contains(cls) === want` → skip), so our own
   writes produce an empty follow-up turn instead of a loop.
+- **Every** per-node attribute belongs in that one pass, and the pass may not be
+  gated on a selection: `applyHeadingLevels` (heading size/weight) runs before the
+  `selectedPaths.length === 0` early return, or a freshly opened mindmap would
+  show every heading at body size until the first click.
 
 **Don't**
 

@@ -9,6 +9,7 @@ import * as yaml from 'yaml'
 import { parseInternalLinks } from 'src/internal-links/parse-internal-links'
 import { nodeParams } from 'src/node-params/node-params'
 import { tagNodeWidthKeys } from './node-widths'
+import { tagHeadingLevels } from './node-headings'
 import { embedPlugin } from 'src/embeds/embeds'
 import { nextTick } from 'src/utilities/utilities'
 import { getFrontMatterInfo } from 'obsidian'
@@ -48,6 +49,7 @@ export function transformMarkdown(markdown: string, sourceRoots: SourceNode[] = 
   parseInternalLinks(root)
   nodeParams(root)
   tagNodeWidthKeys(root, sourceRoots)
+  tagHeadingLevels(root, sourceRoots)
   return root
 }
 
@@ -257,6 +259,10 @@ export function createMarkmap({ parent }: { parent: ParentNode }): { svg: SVGSVG
   markmap.zoom.filter((event: MouseEvent) =>
     event.type === 'mousedown' && event.button === 2 ? !event.ctrlKey : baseFilter(event))
   parent.append(svg)
+  // Preview-style heading sizes (see ./node-headings and `styles.css`). Always
+  // on; the view's header button removes the class to flatten one canvas,
+  // without touching the note, the settings or the other mindmaps.
+  svg.classList.add('advmm-heading-styles')
 
   return { svg, markmap }
 }
