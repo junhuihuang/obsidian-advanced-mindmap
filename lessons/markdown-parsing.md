@@ -61,3 +61,26 @@ identically-named nodes and selecting the root highlighted the inner one.
   start at the first list item, so line-based tagging would make the root share the first
   item's path. Same class of problem as `isParagraphContainer`: a container node must not
   steal its children's path.
+
+## A note that starts with `# H1` names its own root — do not wrap the file name above it
+
+**Symptom.** A note with `# My note` at the top rendered the title twice:
+`My note → My note → …`. The outer layer was the file name.
+
+**Root cause.** `markmap` promotes the document's single top-level node to the root, so
+for `# My note` the root *is* the note's heading. `addTitleToRootNode` only asked "does
+the root have text?", saw the heading and wrapped `file.basename` around it.
+
+**Do**
+
+- `titleWrapsRoot(root)` decides, and only wraps when the root is a real document node
+  that is **not** the note's `H1` (a lone list item, a document starting at `## H2`).
+  `markmap` keeps the tag it rendered from in `payload.tag`, so `payload.tag === 'h1'`
+  identifies the note's heading — do not compare text with the file name.
+- Keep `expandLevelWithTitle` in sync with that decision: only a wrapper adds a level, so
+  `renderer-tab.ts` shifts `initialExpandLevel` **only** when `titleWrapsRoot` is true.
+  Naming a textless root in place adds no level, and neither does leaving an `H1` alone.
+
+**Why not "any top-level heading".** Several `#` headings produce a synthetic textless
+root (`markmap` cannot pick one); that root has no title of its own and is named in
+place, which is the wanted result.

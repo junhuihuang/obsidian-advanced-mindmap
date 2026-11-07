@@ -9,7 +9,7 @@ import { createMindmapEditor } from './editor-wiring'
 import MindmapView from 'src/views/view'
 import { svgs } from 'src/internal-links/handle-internal-links'
 import { parseSource } from 'src/editing/source-tree'
-import { addTitleToRootNode, expandLevelWithTitle } from './root-title'
+import { addTitleToRootNode, expandLevelWithTitle, titleWrapsRoot } from './root-title'
 import { createTreeUpdater } from './tree-updater'
 import { createMarkdownSplit } from './markdown-split'
 import { removeChildlessCircles } from 'src/rendering/node-circles'
@@ -135,11 +135,13 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     const markmapOptions = getOptions(settings)
 
     if (settings.titleAsRootNode) {
+      const wrapped = titleWrapsRoot(rootNode)
       rootNode = addTitleToRootNode(rootNode, file.basename)
       // The title wrapper sits above the document's own root: markmap counts it
       // as the first level, so the setting is shifted to keep the document as
-      // expanded as it asked to be.
-      markmapOptions.initialExpandLevel = expandLevelWithTitle(markmapOptions.initialExpandLevel)
+      // expanded as it asked to be. A title written into the root in place (or
+      // not added, because the note already starts with its `H1`) adds no level.
+      if (wrapped) markmapOptions.initialExpandLevel = expandLevelWithTitle(markmapOptions.initialExpandLevel)
     }
 
     state.markmapOptions = markmapOptions

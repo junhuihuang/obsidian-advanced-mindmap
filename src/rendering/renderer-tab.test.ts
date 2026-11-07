@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   state: {} as any,
   editor: { focus: vi.fn(), destroy: vi.fn() },
   transform: vi.fn(() => ({ content: '', children: [] })),
-  cachedRead: vi.fn(), modify: vi.fn(), settings: { animationDuration: 0 },
+  cachedRead: vi.fn(), modify: vi.fn(), settings: { animationDuration: 0 } as Record<string, unknown>,
   svgs: new Map(),
   createLeafBySplit: vi.fn(),
   workspaceOn: vi.fn(() => ({})),
@@ -25,13 +25,18 @@ vi.mock('./renderer-common', () => ({
       markmap: { setData: mocks.setData, renderData: mocks.renderData, svg: { node: () => svg }, options: { color: () => '' }, fit: mocks.fit, rescale: mocks.rescale, destroy: mocks.destroy, state: mocks.state },
     }
   },
-  getOptions: () => ({ duration: 0 }), transformMarkdown: mocks.transform,
+  getOptions: (settings: any) => ({
+    duration: 0,
+    ...settings.initialExpandLevel !== undefined && { initialExpandLevel: settings.initialExpandLevel },
+  }),
+  transformMarkdown: mocks.transform,
   splitMarkdown: () => ({ settings: {} }),
 }))
 vi.mock('./editor-wiring', () => ({ createMindmapEditor: (_mm: any, context: any) => { mocks.context = context; return mocks.editor } }))
 vi.mock('src/internal-links/handle-internal-links', () => ({ svgs: mocks.svgs }))
 vi.mock('./node-circles', () => ({ removeChildlessCircles: vi.fn() }))
 
+import { SOURCE_PATH_KEY } from 'src/editing/source-paths'
 import { TabRenderer } from './renderer-tab'
 
 const a = { path: 'a.md', basename: 'a' } as any
@@ -147,6 +152,41 @@ describe('TabRenderer lifecycle and render workload', () => {
     await vi.waitFor(() => expect(leaf.openFile).toHaveBeenCalledWith(a, { active: true }))
     expect(mocks.createLeafBySplit).toHaveBeenCalledOnce()
     expect(states).toEqual([true])
+  })
+
+  it('leaves the note\'s own H1 as the root and does not shift the expand level', async () => {
+    mocks.settings.titleAsRootNode = true
+    mocks.settings.initialExpandLevel = 2
+    // What `transformMarkdown` produces for `# My note`: the H1 *is* the root.
+    mocks.transform.mockReturnValue({ content: 'My note', payload: { tag: 'h1', [SOURCE_PATH_KEY]: [0] }, children: [] } as any)
+    const r = renderer()
+    await r.firstRender(a)
+
+    // The root carries the note's title already (see `titleWrapsRoot`), so the
+    // file name is not drawn above it and markmap's level count is unchanged.
+    const [root, options] = mocks.setData.mock.lastCall!
+    expect(root.content).toBe('My note')
+    expect(root.children).toEqual([])
+    expect(options.initialExpandLevel).toBe(2)
+    delete mocks.settings.titleAsRootNode
+    delete mocks.settings.initialExpandLevel
+    r.destroy()
+  })
+
+  it('names a textless root in place without shifting the expand level', async () => {
+    mocks.settings.titleAsRootNode = true
+    mocks.settings.initialExpandLevel = 2
+    // A prose-only note: a synthetic, textless root with the empty source path.
+    mocks.transform.mockReturnValue({ content: '', payload: { [SOURCE_PATH_KEY]: [] }, children: [] } as any)
+    const r = renderer()
+    await r.firstRender(a)
+
+    const [root, options] = mocks.setData.mock.lastCall!
+    expect(root.content).toBe('a')
+    expect(options.initialExpandLevel).toBe(2)
+    delete mocks.settings.titleAsRootNode
+    delete mocks.settings.initialExpandLevel
+    r.destroy()
   })
 
   it('releases the editor, markmap and svg registry when destroyed', async () => {

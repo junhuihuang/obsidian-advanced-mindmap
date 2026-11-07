@@ -331,16 +331,16 @@ describe('adding below the synthetic root', () => {
     expect(next.children.map(child => normalizeContent(child.content))).toEqual(['a', 'b'])
   })
 
-  it('keeps the title root in place for a note with a single heading', () => {
+  it('keeps the note\'s own heading as the root instead of wrapping the file name', () => {
     const markdown = '# 我的笔记\n- a\n'
     const root = render(markdown)
 
-    // The note's own heading is a child of the title, not the root itself.
-    expect(normalizeContent(root.content)).toBe('对外界面')
-    expect(getSourcePath(root)).toEqual([])
-    expect(normalizeContent(root.children[0].content)).toBe('我的笔记')
-    expect(getSourcePath(root.children[0])).toEqual([0])
-    expect(getSourcePath(root.children[0].children[0])).toEqual([0, 0])
+    // The note already names itself with an `H1`; a title wrapper would draw the
+    // name twice (see `lessons/markdown-parsing.md`).
+    expect(normalizeContent(root.content)).toBe('我的笔记')
+    expect(getSourcePath(root)).toEqual([0])
+    expect(normalizeContent(root.children[0].content)).toBe('a')
+    expect(getSourcePath(root.children[0])).toEqual([0, 0])
   })
 
   it('keeps working when the new node becomes the document root', () => {

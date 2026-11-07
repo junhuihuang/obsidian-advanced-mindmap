@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { getSourcePath, tagSourcePaths } from 'src/editing/source-paths'
 import { parseSource } from 'src/editing/source-tree'
-import { addTitleToRootNode, expandLevelWithTitle } from './root-title'
+import { addTitleToRootNode, expandLevelWithTitle, titleWrapsRoot } from './root-title'
 
 
 const transformer = new Transformer()
@@ -71,6 +71,36 @@ describe('addTitleToRootNode', () => {
     expect(titled.payload).toEqual({})
   })
 
+  it('keeps the document\'s own H1 as the root instead of wrapping the file name', () => {
+    const markdown = '# My note\n- a\n'
+    const { root } = transformer.transform(markdown)
+    tagSourcePaths(root, parseSource(markdown))
+
+    // markmap promoted the `# My note` heading to the root; the file name would
+    // draw the title a second time.
+    expect(root.payload?.tag).toBe('h1')
+    const titled = addTitleToRootNode(root, '2026-11-01')
+
+    expect(titled).toBe(root)
+    expect(titled.content).toBe('My note')
+    expect(nodesWithContent(titled, 'My note')).toEqual([root])
+    expect(nodesWithContent(titled, '2026-11-01')).toEqual([])
+  })
+
+  it('still wraps a root that is not the note\'s H1', () => {
+    const markdown = '- a\n'
+    const { root } = transformer.transform(markdown)
+    tagSourcePaths(root, parseSource(markdown))
+
+    // A lone list item is a document node, but it is not the note's title.
+    expect(root.payload?.tag).toBe('li')
+    const titled = addTitleToRootNode(root, 'My note')
+
+    expect(titled).not.toBe(root)
+    expect(titled.content).toBe('My note')
+    expect(titled.children).toEqual([root])
+  })
+
   it('names a root that markmap filled from the frontmatter title in place', () => {
     // Several top-level headings: markmap's root is a synthetic container, and
     // it writes the frontmatter `title:` into it because it has no text.
@@ -116,6 +146,35 @@ describe('addTitleToRootNode', () => {
     // root is render-only either way.
     expect(titled).toBe(root)
     expect(titled.content).toBe('My note')
+  })
+})
+
+describe('titleWrapsRoot', () => {
+  it('wraps only a document root that is not the note\'s own H1', () => {
+    const h1 = transformer.transform('# My note\n- a\n').root
+    tagSourcePaths(h1, parseSource('# My note\n- a\n'))
+    expect(titleWrapsRoot(h1)).toBe(false)
+
+    const listItem = transformer.transform('- a\n').root
+    tagSourcePaths(listItem, parseSource('- a\n'))
+    expect(titleWrapsRoot(listItem)).toBe(true)
+  })
+
+  it('does not wrap a root it can name in place', () => {
+    const { root } = transformer.transform('## A\n\n## B\n')
+    tagSourcePaths(root, parseSource('## A\n\n## B\n'))
+
+    expect(titleWrapsRoot(root)).toBe(false)
+  })
+
+  it('agrees with addTitleToRootNode on whether a level is added', () => {
+    for (const markdown of ['# A\n- a\n', '- a\n', '## A\n\n## B\n', '---\ntitle: T\n---\n\n- a\n']) {
+      const { root } = transformer.transform(markdown)
+      tagSourcePaths(root, parseSource(markdown))
+
+      const titled = addTitleToRootNode(root, 'File name')
+      expect(titled !== root).toBe(titleWrapsRoot(root))
+    }
   })
 })
 

@@ -147,7 +147,7 @@ export default {
       },
       titleAsRootNode: {
         name: 'Use title as root node',
-        description: 'When on, the root node of the mindmap will be the title of the document',
+        description: 'When on, the root node of the mindmap will be the title of the document. A note that starts with a level-1 heading keeps that heading as its root',
       },
       coloring: {
         name: `${Color}ing approach`,

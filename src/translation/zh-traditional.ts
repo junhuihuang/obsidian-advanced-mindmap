@@ -140,7 +140,7 @@ export default {
       },
       titleAsRootNode: {
         name: '使用標題作為根節點',
-        description: '啟用後，思維導圖的根節點將使用文檔的標題',
+        description: '啟用後，思維導圖的根節點將使用文檔的標題；已經有一級標題的筆記則直接以該標題為根節點',
       },
       coloring: {
         name: '配色方案',

@@ -140,7 +140,7 @@ export default {
       },
       titleAsRootNode: {
         name: '使用标题作为根节点',
-        description: '启用后，思维导图的根节点将使用文档的标题',
+        description: '启用后，思维导图的根节点将使用文档的标题；已经有一级标题的笔记则直接以该标题为根节点',
       },
       coloring: {
         name: '配色方案',
