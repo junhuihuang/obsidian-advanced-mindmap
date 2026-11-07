@@ -6,7 +6,8 @@
     "dev": "webpack --mode development --watch",
     "build": "tsc --noEmit && webpack --mode production",
     "test": "vitest",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "deploy": "bash scripts/deploy.sh"
   },
   "type": "module",
   "devDependencies": {
