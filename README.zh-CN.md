@@ -6,6 +6,8 @@ Advanced Mindmap 使用 [Markmap](https://markmap.js.org/) 渲染笔记，并把
 
 [English](README.md) | 简体中文
 
+![Advanced Mindmap：把这份 README 渲染成可编辑的思维导图](images/mind-map-preview.png)
+
 ## 功能
 
 - **直接在图上编辑。** 不用离开思维导图就能新增、重命名、调整顺序和删除节点。只重写受影响的那几行，frontmatter、正文和代码块保持原样。

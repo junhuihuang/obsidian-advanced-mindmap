@@ -6,6 +6,8 @@ Advanced Mindmap renders your notes with [Markmap](https://markmap.js.org/) and 
 
 English | [简体中文](README.zh-CN.md)
 
+![Advanced Mindmap: this README rendered as an editable mindmap](images/mind-map-preview.png)
+
 ## Features
 
 - **Edit on the map.** Add, rename, reorder and delete nodes without leaving the mindmap. Only the affected lines of the note are rewritten, so frontmatter, prose and code blocks stay untouched.
