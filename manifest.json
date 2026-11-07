@@ -1,7 +1,7 @@
 {
   "id": "advanced-mindmap",
   "name": "Advanced Mindmap",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "minAppVersion": "1.14.5",
   "description": "Edit your Markdown notes as an interactive mindmap, with every change written straight back to the note.",
   "author": "junhuihuang",
