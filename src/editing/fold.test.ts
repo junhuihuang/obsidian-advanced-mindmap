@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   foldCommandPlan,
+  foldToLevelPlan,
   levelPlan,
   revealAll,
   revealNextLevelPlan,
@@ -198,6 +199,34 @@ describe('foldCommandPlan', () => {
   it('produces an empty plan when a command has nothing to do', () => {
     const root = sample()
     expect(planNames(foldCommandPlan(root, 'unfoldLevel'))).toEqual({ fold: [], unfold: [] })
+  })
+})
+
+describe('foldToLevelPlan', () => {
+  it('folds every parent at or below the requested level', () => {
+    expect(planNames(foldToLevelPlan(sample(), 1))).toEqual({ fold: ['a', 'a1'], unfold: [] })
+    expect(planNames(foldToLevelPlan(sample(), 2))).toEqual({ fold: ['a1'], unfold: [] })
+  })
+
+  it('shows only the root for level 0', () => {
+    expect(planNames(foldToLevelPlan(sample(), 0))).toEqual({ fold: ['root', 'a', 'a1'], unfold: [] })
+  })
+
+  it('clamps a level past the depth to a fully expanded tree', () => {
+    expect(planNames(foldToLevelPlan(sampleWithLevel(0), 99))).toEqual({ fold: [], unfold: ['root', 'a', 'a1'] })
+  })
+
+  it('is a no-op when the tree already shows that level', () => {
+    const root = sampleWithLevel(2)
+    expect(planNames(foldToLevelPlan(root, 2))).toEqual({ fold: [], unfold: [] })
+  })
+
+  it('round-trips levels set by whole-tree commands', () => {
+    const root = sample()
+    applyPlan(levelPlan(root, 2))
+    expect(planNames(foldToLevelPlan(root, 1))).toEqual({ fold: ['a'], unfold: [] })
+    applyPlan(foldToLevelPlan(root, 1))
+    expect(visibleLevel(root)).toBe(1)
   })
 })
 

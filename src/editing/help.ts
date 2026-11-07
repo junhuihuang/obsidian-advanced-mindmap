@@ -19,6 +19,7 @@ export type HelpLabel =
   | 'center'
   | 'fold'
   | 'foldLevel'
+  | 'foldToLevel'
   | 'unfold'
   | 'unfoldAll'
   | 'toggleAll'
@@ -91,6 +92,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { keys: 'z o', label: 'unfold' },
       { keys: 'z O', label: 'unfoldAll' },
       { keys: 'z a', label: 'toggleAll' },
+      { keys: 'z 0…9', label: 'foldToLevel' },
       { keys: '/', label: 'search' },
       { keys: 'n / p', label: 'searchNext' },
       { keys: '?', label: 'help' },

@@ -5,7 +5,7 @@ import { strings } from 'src/translation'
 import { editorActions, type ActionState, type EditorCommand } from './actions'
 import { clipboardCommandForEvent, directionForKey, isModifierKey, nodeActionForKey, resizeCommandForEvent, resolveFoldSequence, zoomCommandForEvent, FOLD_PREFIX, GOTO_PREFIX, type ClipboardCommand, type Direction, type FoldAction, type ResizeAction, type ZoomAction } from './keymap'
 import { resolveDropTarget, type DropBox, type DropTarget } from './drop-target'
-import { foldCommandPlan, revealNextLevelPlan, type FoldLevelAction, type FoldNode, type FoldPlan } from './fold'
+import { foldCommandPlan, foldToLevelPlan, revealNextLevelPlan, type FoldLevelAction, type FoldNode, type FoldPlan } from './fold'
 import { focusPaths, siblingPaths } from './focus'
 import { HELP_SECTIONS } from './help'
 import { FOLD_HINTS } from './fold-hints'
@@ -1136,7 +1136,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       }
       pendingPrefix = sequence.pending
       if (pendingPrefix === FOLD_PREFIX) showFoldHint()
-      if (sequence.action) applyFoldAction(sequence.action)
+      if (sequence.action) applyFoldAction(sequence.action, sequence.level)
       return
     }
 
@@ -1304,6 +1304,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   const FOLD_HINT_LABELS: Record<FoldAction, string> = {
     fold: strings.nodeEditor.hintFold,
     foldLevel: strings.nodeEditor.hintFoldLevel,
+    foldToLevel: strings.nodeEditor.hintFoldToLevel,
     unfold: strings.nodeEditor.hintUnfold,
     unfoldAll: strings.nodeEditor.hintUnfoldAll,
     toggleAll: strings.nodeEditor.hintToggleAll,
@@ -1864,7 +1865,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   }
 
   /** Dispatches a resolved fold command. */
-  function applyFoldAction(action: FoldAction) {
+  function applyFoldAction(action: FoldAction, level?: number) {
     // A selection that has been folded out of view must not swallow the
     // command: with nothing *rendered* selected, `zc`/`zC`/`zo`/`zO` act on the
     // whole tree (otherwise they would silently do nothing).
@@ -1881,6 +1882,11 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       // the whole tree (the root's subtree) when nothing is selected.
       case 'foldLevel':
         void runFoldCommand('foldLevel', data)
+        return
+      // `z0`…`z9` always target the whole document: on a large note the useful
+      // question is "show N levels", independent of what happens to be selected.
+      case 'foldToLevel':
+        void foldToLevel(level ?? 0)
         return
       case 'unfold':
         if (hasSelection) void revealSelectedOneLevel()
@@ -1903,7 +1909,19 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     const root = target ?? getFoldRoot?.()
     if (!root) return
 
-    const plan = foldCommandPlan(root, action)
+    await applyFoldPlanAndRecenter(foldCommandPlan(root, action))
+  }
+
+  /** `z0`…`z9`: show exactly `level` levels of the whole document. */
+  async function foldToLevel(level: number) {
+    const root = getFoldRoot?.()
+    if (!root) return
+
+    await applyFoldPlanAndRecenter(foldToLevelPlan(root, level))
+  }
+
+  /** Applies a computed plan once, then re-fits the viewport. */
+  async function applyFoldPlanAndRecenter(plan: FoldPlan) {
     if (!plan.fold.length && !plan.unfold.length) return
 
     if (applyFoldPlan) {

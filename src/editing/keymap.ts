@@ -1,7 +1,7 @@
 export type NodeAction = 'addChild' | 'addSibling' | 'remove' | 'edit' | 'center' | 'focus' | 'focusSiblings' | 'moveDown' | 'moveUp'
 export type EditingAction = 'addChild' | 'commit' | 'cancel'
 export type Direction = 'up' | 'down' | 'left' | 'right'
-export type FoldAction = 'fold' | 'foldLevel' | 'unfold' | 'unfoldAll' | 'toggleAll'
+export type FoldAction = 'fold' | 'foldLevel' | 'foldToLevel' | 'unfold' | 'unfoldAll' | 'toggleAll'
 export type ZoomAction = 'in' | 'out'
 export type ResizeAction = 'wider' | 'narrower'
 
@@ -37,6 +37,8 @@ export interface FoldSequenceResult {
   pending: string | null
   /** The fold command resolved by this key, if any. */
   action?: FoldAction
+  /** Target level of a `foldToLevel` action (`0` shows only the root). */
+  level?: number
 }
 
 /**
@@ -48,6 +50,8 @@ export interface FoldSequenceResult {
  *  - `zo` unfolds one level of the selected node (or of the whole tree)
  *  - `zO` unfolds every descendant of the selected node (or the whole tree)
  *  - `za` / `zA` toggle between fully collapsed and fully expanded
+ *  - `z0`…`z9` fold the whole tree to exactly that many levels, which is much
+ *    faster than walking down level by level on a large document
  *
  * `a` is case-insensitive (`zA` is an alias), but `c`/`C` and `o`/`O` differ:
  * the uppercase key acts on the *subtree* (fold) or on the whole tree (unfold).
@@ -56,6 +60,12 @@ export interface FoldSequenceResult {
  */
 export function resolveFoldSequence(pending: string | null, key: string): FoldSequenceResult {
   if (pending === FOLD_PREFIX) {
+    // `z` + digit: jump straight to a visible depth. Only a single digit, so
+    // `z1` acts immediately instead of waiting to see whether `z12` follows.
+    if (key.length === 1 && key >= '0' && key <= '9') {
+      return { pending: null, action: 'foldToLevel', level: Number(key) }
+    }
+
     const lower = key.length === 1 ? key.toLowerCase() : key
     switch (lower) {
       case 'c': return { pending: null, action: key === 'C' ? 'foldLevel' : 'fold' }

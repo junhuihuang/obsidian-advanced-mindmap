@@ -1,8 +1,10 @@
 import type { FoldAction } from './keymap'
 
 export interface FoldHint {
-  /** Second key of the `z`-prefixed command. */
+  /** Keys shown in the hint. */
   key: string
+  /** A key that actually resolves to the advertised action (used by tests). */
+  press: string
   action: FoldAction
 }
 
@@ -11,9 +13,10 @@ export interface FoldHint {
  * sequences are discoverable. Order matches the display order.
  */
 export const FOLD_HINTS: FoldHint[] = [
-  { key: 'c', action: 'fold' },
-  { key: 'C', action: 'foldLevel' },
-  { key: 'o', action: 'unfold' },
-  { key: 'O', action: 'unfoldAll' },
-  { key: 'a', action: 'toggleAll' },
+  { key: 'c', press: 'c', action: 'fold' },
+  { key: 'C', press: 'C', action: 'foldLevel' },
+  { key: 'o', press: 'o', action: 'unfold' },
+  { key: 'O', press: 'O', action: 'unfoldAll' },
+  { key: 'a', press: 'a', action: 'toggleAll' },
+  { key: '0…9', press: '2', action: 'foldToLevel' },
 ]

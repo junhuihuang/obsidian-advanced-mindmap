@@ -900,3 +900,23 @@ markmap-view 的 `maxWidth` 是**全局选项**，写在 `<svg>` 的 `--markmap-
 - **一个 source path 只能对应一个渲染节点**。重复路径的后果是静默的（`byPath` 后者胜）：选中/编辑/折叠全都
   作用在另一个节点上。写测试时直接断言路径唯一（见 `source-paths.integration.test.ts` 的
   “one source path per rendered node”）。
+
+## 38. `z0`…`z9` 直接折叠到指定层数
+
+### 背景
+大文档/深层级时，`zC` 一次只收一层，要按很多次才能到可读的规模。新增 `z` + 数字：直接把整张图折叠到
+「显示 N 层」。
+
+### 实现要点
+- `keymap.resolveFoldSequence`：`z` 之后接单个 `0`–`9` → `{ action: 'foldToLevel', level: N }`。
+  **只认一位数字**，所以 `z1` 立即生效，不会为了等 `z12` 而卡住（层级 > 9 时用 `zC` 继续收或直接 `z9`）。
+- `fold.foldToLevelPlan(root, level)` = `levelPlan(root, clamp(level, 0, treeDepth))`，与 `zC`/`zO` 共用同一套
+  「level = 最浅折叠父节点的深度」语义，因此 `z2` 之后按 `zC` 能无缝接着往下一层收。
+- `foldToLevel` **永远作用于整棵树**（不像 `zC` 会跟随选中节点）：大文档里用户问的是「显示几层」，
+  与当前选中谁无关。选中节点被折叠隐藏时由既有的 `primaryNodeData()` 兜底。
+- 提示面板/帮助/README 都要加一行：`?` 里的 fold 列表与 `FOLD_HINTS` 由 `help.test.ts` 强制一致，
+  加 action 时三处（keymap、fold-hints、translations）必须同时改，否则 Record<FoldAction,…> 会报错。
+
+### 测试
+- `fold.test.ts` 覆盖 0/1/2、超出深度 clamp、幂等、与 `levelPlan` 往返。
+- `node-editor-fold.test.ts` 覆盖 `z2`、有选中时仍按文档作用、`z0`、已在该层时不重渲染。

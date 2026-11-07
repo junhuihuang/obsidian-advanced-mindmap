@@ -27,6 +27,11 @@ function node(content: string, children: FoldNode[] = [], fold?: number): FoldNo
   return { content, children, payload: fold === undefined ? {} : { fold } } as FoldNode & { content: string }
 }
 
+/** Contents of the nodes in a plan, so assertions do not depend on identity. */
+function contents(nodes: FoldNode[]): string[] {
+  return nodes.map(node => (node as unknown as { content: string }).content)
+}
+
 function setup(root: FoldNode, select = false, selectedChildren: FoldNode[] = []) {
   document.body.innerHTML = ''
   const container = document.createElement('div')
@@ -107,6 +112,41 @@ describe('whole-tree fold commands', () => {
     expect(applyFoldPlan).toHaveBeenCalledTimes(1)
   })
 
+  it('shows exactly two levels on z2', () => {
+    const { press, applyFoldPlan } = setup(node('root', [node('a', [node('a1', [node('a1x')])])]))
+    press('z')
+    press('2')
+    expect(applyFoldPlan).toHaveBeenCalledTimes(1)
+    // Level 2 keeps the root and `a` open and folds everything at depth 2.
+    expect(contents((applyFoldPlan.mock.calls[0][0] as FoldPlan).fold)).toEqual(['a1'])
+  })
+
+  it('treats z digits as document-wide even with a node selected', () => {
+    const child = node('sub', [node('sub1', [node('sub2')])])
+    const { press, applyFoldPlan } = setup(sample(), true, [child])
+    press('z')
+    press('1')
+    expect(applyFoldPlan).toHaveBeenCalledTimes(1)
+    // The plan is rooted at the document, not at the selection.
+    expect(contents((applyFoldPlan.mock.calls[0][0] as FoldPlan).fold)).toEqual(['a'])
+  })
+
+  it('collapses to the root on z0', () => {
+    const { press, applyFoldPlan } = setup(sample())
+    press('z')
+    press('0')
+    expect(contents((applyFoldPlan.mock.calls[0][0] as FoldPlan).fold)).toEqual(['root', 'a'])
+  })
+
+  it('does nothing on a z digit that already matches the visible level', () => {
+    const root = sample()
+    for (const node of root.children ?? []) node.payload = { ...node.payload, fold: 1 }
+    const { press, applyFoldPlan } = setup(root)
+    press('z')
+    press('1')
+    expect(applyFoldPlan).not.toHaveBeenCalled()
+  })
+
   it('folds only the selected node on zc', () => {
     const { press, applyFoldPlan } = setup(sample(), true)
     press('z')
@@ -164,7 +204,7 @@ describe('whole-tree fold commands', () => {
     press('z')
     const hint = container.querySelector('.advmm-key-hint') as HTMLElement
     expect(hint.classList.contains('advmm-hidden')).toBe(false)
-    expect(Array.from(hint.querySelectorAll('kbd')).map(k => k.textContent)).toEqual(['c', 'C', 'o', 'O', 'a'])
+    expect(Array.from(hint.querySelectorAll('kbd')).map(k => k.textContent)).toEqual(['c', 'C', 'o', 'O', 'a', '0…9'])
 
     press('Shift', { shiftKey: true })
     expect(hint.classList.contains('advmm-hidden')).toBe(false)

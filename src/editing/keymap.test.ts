@@ -82,6 +82,17 @@ describe('resolveFoldSequence', () => {
     expect(resolveFoldSequence('z', 'A')).toEqual({ pending: null, action: 'toggleAll' })
   })
 
+  it('folds the whole tree to a level on z0…z9', () => {
+    expect(resolveFoldSequence('z', '0')).toEqual({ pending: null, action: 'foldToLevel', level: 0 })
+    expect(resolveFoldSequence('z', '2')).toEqual({ pending: null, action: 'foldToLevel', level: 2 })
+    expect(resolveFoldSequence('z', '9')).toEqual({ pending: null, action: 'foldToLevel', level: 9 })
+  })
+
+  it('does not treat a digit outside the sequence as a fold command', () => {
+    expect(resolveFoldSequence(null, '2')).toEqual({ pending: null })
+    expect(resolveFoldSequence('g', '2')).toEqual({ pending: null })
+  })
+
   it('cancels an unknown sequence without resolving an action', () => {
     expect(resolveFoldSequence('z', 'x')).toEqual({ pending: null })
   })

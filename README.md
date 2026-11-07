@@ -82,6 +82,7 @@ Every edit is written back to the note immediately. Cutting and pasting keeps th
 | `z` `c` / `z` `o` | Fold / unfold one level |
 | `z` `C` / `z` `O` | Fold one level of a subtree / unfold all |
 | `z` `a` | Toggle fully collapsed / expanded |
+| `z` `0`…`9` | Show only that many levels of the whole map (`z0` = root only) |
 | `/`, then `n` / `p` | Search nodes, jump to next / previous match |
 | `Escape` | Clear the selection or close the search |
 | `?` | Show all shortcuts |

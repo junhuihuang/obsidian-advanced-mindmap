@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { FOLD_HINTS } from './fold-hints'
 import { resolveFoldSequence, type FoldAction } from './keymap'
 
-const ALL_ACTIONS: FoldAction[] = ['fold', 'foldLevel', 'unfold', 'unfoldAll', 'toggleAll']
+const ALL_ACTIONS: FoldAction[] = ['fold', 'foldLevel', 'foldToLevel', 'unfold', 'unfoldAll', 'toggleAll']
 
 describe('FOLD_HINTS', () => {
   it('advertises every fold action exactly once', () => {
@@ -12,7 +12,7 @@ describe('FOLD_HINTS', () => {
 
   it('uses a key that resolves to the advertised action', () => {
     for (const hint of FOLD_HINTS) {
-      expect(resolveFoldSequence('z', hint.key)).toEqual({ pending: null, action: hint.action })
+      expect(resolveFoldSequence('z', hint.press)).toMatchObject({ pending: null, action: hint.action })
     }
   })
 })

@@ -86,6 +86,15 @@ export function foldCommandPlan(root: FoldNode, action: FoldLevelAction): FoldPl
 }
 
 /**
+ * The node changes needed to show exactly `level` levels (root included),
+ * clamped to the tree. Backs the `z0`…`z9` shortcuts, which jump straight to a
+ * depth instead of folding one level at a time.
+ */
+export function foldToLevelPlan(root: FoldNode, level: number): FoldPlan {
+  return levelPlan(root, Math.max(0, Math.min(Math.floor(level), treeDepth(root))))
+}
+
+/**
  * Payload mutations for revealing exactly one level of `node`'s subtree: the
  * node itself is unfolded and each of its children is folded, so grandchildren
  * and deeper stay hidden. Used by `l` to walk into a collapsed subtree.
