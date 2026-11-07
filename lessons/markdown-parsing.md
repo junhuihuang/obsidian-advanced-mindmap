@@ -85,6 +85,29 @@ the root have text?", saw the heading and wrapped `file.basename` around it.
 root (`markmap` cannot pick one); that root has no title of its own and is named in
 place, which is the wanted result.
 
+## The synthetic root is a move destination — model it as a node with no lines
+
+**Symptom.** `Ctrl+X` + `Ctrl+V` onto the root did nothing (no notice, no write) and a
+drop on the root cancelled. `getNodeAtPath(roots, [])` throws `'Empty node path'`
+because the synthetic root has no source node, so every move path refused it.
+
+**Root cause.** Insertion is anchored on a target node's `line` / `endLine`, and
+`contains()` (the "cannot move into its own subtree" guard) compares **line ranges**,
+not node identity.
+
+**Do**
+
+- `resolveMoveTarget(lines, roots, targetPath, position)` accepts `targetPath === []`
+  and returns a virtual node (`kind: 'heading'`, `level: 0`) whose `line`/`endLine` is
+  `topLevelInsertLineFrom()` — the append line **after** the last top-level node. The
+  `heading` / `level: 0` pair is what makes `destinationPrefix` unindent the moved root
+  and `headingMoveDelta` put a heading back at level `1`.
+- Keep that line **outside** every real node's range. Putting it on the last node's
+  `endLine` makes `contains(lastNode, target)` true and refuses exactly the move a user
+  tries (`- root` > its last child → top level).
+- `applyEdit` already maps `addChild` + `[]` to "append a top-level node"; moves and
+  inserts go through `resolveMoveTarget`, never through `getNodeAtPath(roots, [])`.
+
 ## markmap drops a list/table/code block that sits before a `##`-level heading
 
 **Symptom.** `# A` / `- item` / `## B` renders only `A → B`. The list item is missing

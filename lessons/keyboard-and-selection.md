@@ -37,6 +37,26 @@ re-click the node.
   `i=1` gives `New node ≠ b` → `removedIdx = 1` → removed path `[0,0]` → parent `[0]` →
   focus `a`.
 
+## Pasted or dropped on the root, a node becomes top-level
+
+**Symptom.** The user selected `I.`…`VII.` inside a lone list item, pressed `Ctrl+X`,
+moved the cursor to the root and pressed `Ctrl+V`: nothing happened at all.
+
+**Do**
+
+- `childTargetPath([])` returns `[]` (not `null`), the empty path being the editor's
+  word for "the document's top level". `pasteInto`, `dropPositionAt` and the paste
+  button all go through it; do not re-check `primaryPath.length > 0` for paste.
+- A drop onto the root means top level **wherever** in its box the pointer is: the root
+  has no line to draw a sibling insertion against, so `before`/`after` cannot be
+  expressed there. `resolveDropTarget` may therefore report the root for any position.
+- `pasteInto` passes the **marked** paths to `moveEdits`, which collapses a nested
+  selection itself — do not pre-filter, or the remove/insert edits drift from what
+  `moveNodes` actually did.
+
+**Don't** treat the empty path as "no destination": `getNodeAtPath` throws for it, so a
+move must resolve it through `resolveMoveTarget` (`lessons/markdown-parsing.md`).
+
 ## `gd` (go to definition) jumps to the Markdown source line
 
 **Wiring**

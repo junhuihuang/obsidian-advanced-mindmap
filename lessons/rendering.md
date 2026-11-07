@@ -58,9 +58,21 @@ await applyChange(result.markdown, [
 ```
 
 - `reorderSelection` (`J`/`K`): `dest` is `targetPath`, already known.
-- `moveTo` (drag) / `pasteInto` (single node): recover `dest` from the result with
-  `pathAtLine(parseSource(newMd), result.line)` (helper in `source-tree.ts`).
-- Multi-node paste still goes through a full render: `dest` paths there are messy.
+- `moveTo` (drag) / `pasteInto`: recover `dest` from the result with
+  `moveEdits(sourceRoots(), movedPaths, result)`, which maps every moved block
+  (`MoveResult.lines`, one line per block) through `pathAtLine`.
+
+**Batch ordering (multi-node `moveEdits`).** One batch can only be replayed in the
+order that keeps every path valid:
+
+- **removals back to front**, i.e. the later sibling first. `shiftedPath` decrements by
+  comparing the *accumulated* index, so removing `[0,1]` before `[0,2]` leaves a node at
+  `[0,3]` at `[0,2]` instead of `[0,1]`.
+- **insertions in document order.** Consecutive appended siblings get the paths
+  `k, k+1, …`; in that order each is already correct when its edit runs, and no later
+  edit lowers an index that would shift it.
+- Pass the **outermost** paths only. `moveNodes` collapses a nested selection onto its
+  ancestor, so a `remove` edit for the descendant decrements the same survivors twice.
 
 **Known-good.** `reconcile()` handles the "same path collision" of remove+insert
 benignly: the moved node's old path and its neighbour's `shiftedPath` land on the same

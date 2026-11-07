@@ -18,8 +18,6 @@ Each rule lives in one topic file; read only the ones your change touches.
 ## Open items
 
 - [ ] Verify the code-block view's incremental update in a real Obsidian.
-- [ ] Multi-node cut/paste (`pasteInto`): compute `dest` paths and go incremental — it
-      still falls back to a full render.
 - [ ] Optional: add a `move` edit type to `TreeEdit` so a moved node keeps its own fold
       state (today the moved node is rebuilt, its neighbour is preserved).
 

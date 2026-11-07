@@ -4,7 +4,7 @@ import { Transformer } from 'markmap-lib'
 import { Markmap } from 'markmap-view'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { applyEdit, moveNode, parseSource } from 'src/editing/source-tree'
+import { applyEdit, moveEdits, moveNode, moveNodes, parseSource } from 'src/editing/source-tree'
 import { getSourcePath, tagSourcePaths } from 'src/editing/source-paths'
 import { createTreeUpdater } from './tree-updater'
 
@@ -210,6 +210,29 @@ describe('incremental markmap editing with real data joins', () => {
     expect(c.payload?.fold).toBe(1)
     expect(getSourcePath(a)).toEqual([1])
     expect(getSourcePath(c)).toEqual([2])
+  })
+
+  it('lifts several marked nodes to the top level without rebuilding the tree', async () => {
+    const text = '- root\n  - A\n    - a1\n  - B\n    - b1\n- tail\n'
+    const { mm, updater, group, data } = await setup(text)
+    const root = data('root'), tail = data('tail')
+    await mm.toggleNode(tail) // an untouched neighbour must keep its fold
+    const setData = vi.spyOn(mm, 'setData')
+    const moved = [[0, 0], [0, 1]]
+    const next = moveNodes(text, moved, [], 'child')
+    updater.recordChange(text, next.markdown, moveEdits(parseSource(text), moved, next)!)
+    await updater.update(transformed(next.markdown), options, next.markdown, 'file')
+
+    expect(setData).not.toHaveBeenCalled()
+    expect(mm.state.data!.children.map(node => node.content)).toEqual(['root', 'tail', 'A', 'B'])
+    expect(data('root')).toBe(root)
+    expect(data('tail')).toBe(tail)
+    expect(tail.payload?.fold).toBe(1)
+    // The moved nodes are rebuilt (a moved subtree keeps no fold state), but
+    // they land at the paths the edits name.
+    expect(getSourcePath(data('A'))).toEqual([2])
+    expect(getSourcePath(data('a1'))).toEqual([2, 0])
+    expect(getSourcePath(data('B'))).toEqual([3])
   })
 
   it('does not patch across files/settings or untracked external edits', async () => {

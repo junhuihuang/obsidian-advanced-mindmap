@@ -480,6 +480,67 @@ function topLevelInsertLineFrom(lines: string[], roots: SourceNode[]): number {
 }
 
 /**
+ * Stand-in for the synthetic root when it is the destination of a move.
+ *
+ * A move needs a node to rebase against, but the synthetic root (`[]`) is not
+ * part of the document and has no source line. `kind: 'heading'`, `level: 0`
+ * is what makes the existing logic do the right thing: `destinationPrefix`
+ * unindents the moved root and `headingMoveDelta` puts a heading back at level
+ * 1 — exactly "make this a top-level node of the document".
+ *
+ * Its line is the append position {@link topLevelInsertLineFrom} picks, which
+ * no node of the document occupies: a `line` inside the last top-level node
+ * would make `contains` report the destination as part of the moved subtree
+ * and refuse the move.
+ */
+function topLevelTarget(lines: string[], roots: SourceNode[]): { target: SourceNode, insertAt: number } {
+  const insertAt = topLevelInsertLineFrom(lines, roots)
+  return {
+    target: {
+      kind: 'heading',
+      level: 0,
+      indent: 0,
+      marker: '',
+      checkbox: null,
+      text: '',
+      indentText: '',
+      line: insertAt,
+      endLine: insertAt,
+      children: [],
+    },
+    insertAt,
+  }
+}
+
+/**
+ * The node a move targets plus the line the moved subtree is spliced at, or
+ * `null` when the move cannot be expressed.
+ *
+ * `targetPath` may be the synthetic root's empty path, which makes the moved
+ * node a top-level node of the document. `before` / `after` next to the
+ * synthetic root is refused: there is no line to insert a sibling at.
+ */
+function resolveMoveTarget(
+  lines: string[],
+  roots: SourceNode[],
+  targetPath: number[],
+  position: MovePosition,
+): { target: SourceNode, insertAt: number } | null {
+  if (targetPath.length === 0) {
+    if (position !== 'child') return null
+    return topLevelTarget(lines, roots)
+  }
+
+  let target: SourceNode
+  try {
+    target = getNodeAtPath(roots, targetPath)
+  } catch {
+    return null
+  }
+  return { target, insertAt: position === 'before' ? target.line : target.endLine + 1 }
+}
+
+/**
  * Applies a single edit to `markdown` and returns the updated markdown.
  *
  * Only the lines belonging to the targeted node are touched, so frontmatter,
@@ -590,6 +651,12 @@ export interface MoveResult {
   markdown: string
   /** Source line of the moved node in the result, or -1 when refused. */
   line: number
+  /**
+   * Source line of every moved node in the result, in document order (one per
+   * block that was inserted); absent when the move is refused. Without it a
+   * multi-node move can only be rendered as a whole-tree rebuild.
+   */
+  lines?: number[]
 }
 
 /** A subtree's raw lines plus its parsed root, detached from a document. */
@@ -621,7 +688,8 @@ export function removeSubtree(markdown: string, path: number[]): string {
 
 /**
  * Inserts a detached subtree as the last child of `targetPath` (`child`) or as
- * its sibling (`before` / `after`).
+ * its sibling (`before` / `after`). `targetPath` may be the synthetic root's
+ * empty path, which inserts the subtree as a top-level node.
  *
  * Only the block's own lines are rewritten: its indentation (or heading level)
  * is rebased against the destination while the *relative* structure is kept,
@@ -637,20 +705,16 @@ export function insertSubtree(
   const lines = markdown.split('\n')
   const roots = parseSource(markdown)
 
-  let target: SourceNode
-  try {
-    target = getNodeAtPath(roots, targetPath)
-  } catch {
-    return { markdown, line: -1 }
-  }
+  const resolved = resolveMoveTarget(lines, roots, targetPath, position)
+  if (!resolved) return { markdown, line: -1 }
+  const { target, insertAt } = resolved
 
-  const insertAt = position === 'before' ? target.line : target.endLine + 1
   if (!spliceBlock(lines, roots, insertAt, block, target, position)) return { markdown, line: -1 }
 
   const finalRoots = parseSource(lines.join('\n'))
   renumberGroup(lines, findGroupByLine(finalRoots, insertAt))
 
-  return { markdown: lines.join('\n'), line: insertAt }
+  return { markdown: lines.join('\n'), line: insertAt, lines: [insertAt] }
 }
 
 /**
@@ -790,6 +854,9 @@ function convertSubtreeToLists(
  *
  * The two ordered lists the move disturbs (the one it left and the one it
  * joined) are renumbered. Unsupported moves leave the document untouched.
+ *
+ * `targetPath` may be the synthetic root's empty path, which makes the node a
+ * top-level node of the document.
  */
 export function moveNode(
   markdown: string,
@@ -797,14 +864,18 @@ export function moveNode(
   targetPath: number[],
   position: MovePosition = 'child',
 ): MoveResult {
+  if (sourcePath.length === 0) return { markdown, line: -1 }
+
   const lines = markdown.split('\n')
   const roots = parseSource(markdown)
 
+  const resolved = resolveMoveTarget(lines, roots, targetPath, position)
+  if (!resolved) return { markdown, line: -1 }
+  const { target } = resolved
+
   let source: SourceNode
-  let target: SourceNode
   try {
     source = getNodeAtPath(roots, sourcePath)
-    target = getNodeAtPath(roots, targetPath)
   } catch {
     return { markdown, line: -1 }
   }
@@ -821,7 +892,7 @@ export function moveNode(
   // The target keeps its original line numbers until the block is spliced in,
   // so compute the destination first and only then remove the source.
   const remaining = [...lines.slice(0, source.line), ...lines.slice(source.endLine + 1)]
-  let insertAt = position === 'before' ? target.line : target.endLine + 1
+  let insertAt = resolved.insertAt
   if (source.endLine < insertAt) insertAt -= block.lines.length
 
   if (!spliceBlock(remaining, roots, insertAt, block, target, position)) return { markdown, line: -1 }
@@ -838,7 +909,7 @@ export function moveNode(
     renumberGroup(remaining, findGroupByLine(finalRoots, line))
   }
 
-  return { markdown: remaining.join('\n'), line: insertAt }
+  return { markdown: remaining.join('\n'), line: insertAt, lines: [insertAt] }
 }
 
 /**
@@ -848,6 +919,9 @@ export function moveNode(
  * ancestor only, so nothing is duplicated. With `child` the nodes are appended
  * to `target` in document order; both the destination list and every list the
  * nodes left are renumbered. Returns `line: -1` when the move is unsupported.
+ *
+ * `targetPath` may be the synthetic root's empty path, which makes every moved
+ * node a top-level node of the document.
  */
 export function moveNodes(
   markdown: string,
@@ -861,10 +935,12 @@ export function moveNodes(
   const lines = markdown.split('\n')
   const roots = parseSource(markdown)
 
-  let target: SourceNode
+  const resolved = resolveMoveTarget(lines, roots, targetPath, position)
+  if (!resolved) return { markdown, line: -1 }
+  const { target } = resolved
+
   const sources: { path: number[]; node: SourceNode }[] = []
   try {
-    target = getNodeAtPath(roots, targetPath)
     for (const path of sourcePaths) sources.push({ path, node: getNodeAtPath(roots, path) })
   } catch {
     return { markdown, line: -1 }
@@ -896,12 +972,21 @@ export function moveNodes(
     lines.splice(node.line, node.endLine - node.line + 1)
   }
 
-  const insertAt0 = position === 'before' ? target.line : target.endLine + 1
+  const insertAt0 = resolved.insertAt
   const removedBefore = selected.reduce((total, { node }) =>
     node.endLine < insertAt0 ? total + (node.endLine - node.line + 1) : total, 0)
   const insertAt = insertAt0 - removedBefore
   const inserted = blocks.flat()
   lines.splice(insertAt, 0, ...inserted)
+
+  // Where each moved block starts in the result. `renderMovedSubtree` rewrites
+  // lines one for one, so a block's length is the length of its source range.
+  const insertedLines: number[] = []
+  let cursor = insertAt
+  for (const block of blocks) {
+    insertedLines.push(cursor)
+    cursor += block.length
+  }
 
   // Renumber the destination list and every list that lost a node.
   const finalRoots = parseSource(lines.join('\n'))
@@ -915,7 +1000,43 @@ export function moveNodes(
   }
   for (const group of groups) renumberGroup(lines, group)
 
-  return { markdown: lines.join('\n'), line: insertAt }
+  return { markdown: lines.join('\n'), line: insertAt, lines: insertedLines }
+}
+
+/**
+ * The `remove` + `insert` edits that describe a move to the renderer, so it can
+ * keep every node it does not have to rebuild.
+ *
+ * `before` is the source tree of the pre-move document (used for document
+ * order) and `movedPaths` the paths that were handed to {@link moveNodes}.
+ * Removals go back to front: `TreeUpdater` shifts each surviving path by the
+ * edits it has already seen, which only adds up when the later node is removed
+ * first. Insertions follow in document order, so each destination path is
+ * already valid when its edit is applied. Returns `undefined` when a moved
+ * block's destination cannot be resolved; the caller then re-renders instead.
+ */
+export function moveEdits(
+  before: SourceNode[],
+  movedPaths: number[][],
+  result: MoveResult,
+): { type: 'remove' | 'insert', path: number[] }[] | undefined {
+  // `moveNodes` moves a nested selection's outermost node only, so a `remove`
+  // edit for a descendant would shift the surviving siblings twice.
+  const moved = movedPaths.filter(path => !movedPaths.some(other =>
+    other.length < path.length && other.every((index, depth) => path[depth] === index)))
+
+  const order = new Map(flattenPaths(before).map((path, index) => [pathKey(path), index]))
+  const after = parseSource(result.markdown)
+  const dests = (result.lines ?? []).map(line => pathAtLine(after, line))
+  if (dests.length !== moved.length || dests.some(destination => !destination)) return undefined
+
+  const backToFront = [...moved].sort((a, b) =>
+    (order.get(pathKey(b)) ?? -1) - (order.get(pathKey(a)) ?? -1))
+
+  return [
+    ...backToFront.map(path => ({ type: 'remove' as const, path })),
+    ...dests.map(path => ({ type: 'insert' as const, path: path! })),
+  ]
 }
 
 /** Maps a line of the original document to its line after a batch move. */

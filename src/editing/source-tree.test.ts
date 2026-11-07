@@ -1313,6 +1313,66 @@ describe('moveNodes', () => {
     const markdown = ['- a', '- b', '- c'].join('\n')
     expect(moveNodes(markdown, [[0], [1]], [2]).line).toBe(1)
   })
+
+  it('reports the line of every inserted node', () => {
+    const markdown = ['- a', '  - a1', '- b', '- c'].join('\n')
+    expect(moveNodes(markdown, [[0], [1]], [2]).lines).toEqual([1, 3])
+    expect(moveNode(markdown, [0], [2]).lines).toEqual([2])
+  })
+
+  describe('onto the synthetic root (top level)', () => {
+    it('unindents the moved node and keeps its subtree', () => {
+      const markdown = ['- root', '  - A', '    - a1', '  - B'].join('\n')
+      expect(moved(markdown, [[0, 0]], [])).toBe([
+        '- root',
+        '  - B',
+        '- A',
+        '  - a1',
+      ].join('\n'))
+    })
+
+    it('moves the last child of the last top-level node', () => {
+      // B ends on the document's last line: the destination cannot be a line
+      // inside it, or the move looks like "into its own subtree".
+      const markdown = ['- root', '  - A', '  - B', ''].join('\n')
+      expect(moved(markdown, [[0, 1]], [])).toBe([
+        '- root',
+        '  - A',
+        '- B',
+        '',
+      ].join('\n'))
+    })
+
+    it('lifts a heading back to level 1', () => {
+      const markdown = ['# A', '## A1', '### A1a', '# B'].join('\n')
+      expect(moved(markdown, [[0, 0]], [])).toBe(['# A', '# B', '# A1', '## A1a'].join('\n'))
+    })
+
+    it('matches cut then paste', () => {
+      const markdown = ['- root', '  - A', '    - a1', '  - B'].join('\n')
+      const block = extractSubtree(markdown, [0, 1])!
+      const cut = removeSubtree(markdown, [0, 1])
+
+      expect(insertSubtree(cut, [], 'child', block).markdown).toBe(moved(markdown, [[0, 1]], []))
+    })
+
+    it('renumbers the top-level ordered list it joins', () => {
+      const markdown = ['1. a', '   1. a1', '2. b'].join('\n')
+      expect(moved(markdown, [[0, 0]], [])).toBe(['1. a', '2. b', '3. a1'].join('\n'))
+    })
+
+    it('refuses a sibling position next to the root', () => {
+      const markdown = ['- a', '- b'].join('\n')
+      expect(moved(markdown, [[0]], [], 'before')).toBe(markdown)
+    })
+
+    it('refuses moving the document root into the top level', () => {
+      // A single top-level node is already at the top level; moving it cannot
+      // change the document.
+      const markdown = ['- a', '- b'].join('\n')
+      expect(moved(markdown, [[1]], [])).toBe(['- a', '- b'].join('\n'))
+    })
+  })
 })
 
 describe('cut and paste', () => {

@@ -13,7 +13,7 @@ import { nodeContentElement, nodeMaxWidth, nodeMetrics, openInlineInput } from '
 import { findNodeInDirection, isDescendantPath, nearestPath, type NodePosition } from './navigation'
 import { getSourcePath } from './source-paths'
 import { collectSearchNodes, findMatches, isQueryEmpty, stepIndex } from './search'
-import { applyEdit, flattenPaths, getNodeAtPath, moveNode, moveNodes, parseSource, pathAtLine, pathKey, pathRange, removeNodes as removeSourceNodes, rootChildTarget, samePath, type EditOperation, type SourceNode } from './source-tree'
+import { applyEdit, flattenPaths, getNodeAtPath, moveEdits, moveNode, moveNodes, parseSource, pathAtLine, pathKey, pathRange, removeNodes as removeSourceNodes, rootChildTarget, samePath, type EditOperation, type SourceNode } from './source-tree'
 import { isDoubleTap, movedBeyondThreshold, tapAction, LONG_PRESS_MS, type TapPoint } from './touch'
 import { applyNodeWidths, clampNodeWidth, nodeLabel, nodeWidth, nodeWidthKey } from 'src/rendering/node-widths'
 import { applyHeadingLevels } from 'src/rendering/node-headings'
@@ -1392,7 +1392,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
         if (paths.length > 0) cutNode(paths)
         return
       }
-      case 'paste': if (clipboard && editable && primaryPath) void pasteInto(primaryPath); return
+      case 'paste': if (clipboard && primaryPath) void pasteInto(primaryPath); return
       case 'undo': void undo(); return
       case 'redo': void redo(); return
     }
@@ -2499,7 +2499,9 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
         return true
       }
       case 'paste':
-        if (!clipboard || !primaryPath || primaryPath.length === 0) return false
+        // The synthetic root is a valid destination: the marked nodes become
+        // top-level nodes of the document (see `pasteInto`).
+        if (!clipboard || !primaryPath) return false
         void pasteInto(primaryPath)
         return true
     }
@@ -2591,14 +2593,22 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
    * Where a code block or table must be dropped. They have no children in
    * markmap (a `<pre>`/`<table>` is a leaf), so a drop onto one targets the
    * node it belongs to instead. Returns `null` for a top-level block, which
-   * has no valid parent to fall back to.
+   * has no parent to fall back to.
+   *
+   * The synthetic root (`[]`) is a destination: nodes pasted or dropped there
+   * become top-level nodes of the document.
    */
   function childTargetPath(path: number[]): number[] | null {
+    // The synthetic root has no source node but is a valid destination: a node
+    // pasted or dropped there becomes a top-level node of the document.
+    if (path.length === 0) return []
+
     let current = path
     while (current.length > 0) {
       if (!isOpaqueBlock(current)) return current
       current = current.slice(0, -1)
     }
+    // A top-level block has no parent to fall back to.
     return null
   }
 
@@ -2635,7 +2645,11 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (!drag) return null
 
     const target = resolveDropTarget(x, y, collectDropBoxes(), drag.path, hoveredPathAt(x, y))
-    if (!target || target.path.length === 0) return null
+    if (!target) return null
+    // Dropping on the synthetic root means "make this a top-level node": it has
+    // no line to draw a sibling insertion against, so every third of its box
+    // targets the document's top level.
+    if (target.path.length === 0) return { position: 'child', path: [] }
     if (target.position === 'child') {
       const child = childTargetPath(target.path)
       return child ? { position: 'child', path: child } : null
@@ -2705,21 +2719,15 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       return
     }
 
-    const result = moveNodes(getMarkdown(), cut.map(entry => entry.path), target, 'child')
+    const moved = cut.map(entry => entry.path)
+    const result = moveNodes(getMarkdown(), moved, target, 'child')
     if (result.line < 0) {
       new Notice(strings.nodeEditor.pasteInvalid)
       return
     }
 
     try {
-      // Single-node paste is a remove + insert; multi-node paste still falls
-      // back to a full re-render until its destination paths are computed.
-      const dest = cut.length === 1
-        ? pathAtLine(parseSource(result.markdown), result.line)
-        : undefined
-      await applyChange(result.markdown, dest
-        ? [{ type: 'remove', path: cut[0].path }, { type: 'insert', path: dest }]
-        : undefined)
+      await applyChange(result.markdown, moveEdits(sourceRoots(), moved, result))
     } catch (error) {
       handleEditError(error)
       return

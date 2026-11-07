@@ -75,7 +75,7 @@ export function resolveDropTarget(
     return { position: 'child', path: box.path }
   }
 
-  if (hoveredPath && hoveredPath.length > 0) {
+  if (hoveredPath) {
     // Hovering the dragged node itself or one of its descendants is never a
     // valid drop: the node would have to move into (or next to) itself.
     if (isPathPrefix(draggedPath, hoveredPath)) return null

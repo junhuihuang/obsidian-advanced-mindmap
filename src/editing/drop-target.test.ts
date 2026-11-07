@@ -90,4 +90,11 @@ describe('resolveDropTarget', () => {
     // Top edge of [0] with dragged [0, 0]: becomes "before" parent.
     expect(resolveDropTarget(50, 3, tree, [0, 0], [0])).toEqual({ position: 'before', path: [0] })
   })
+
+  it('reports the synthetic root when it is hovered', () => {
+    // Dropping on the root makes the node top-level; the empty path is the
+    // caller's signal for that.
+    const tree = [box([], 0, 100, 0, 40), box([0], 0, 100, 0, 20)]
+    expect(resolveDropTarget(50, 20, tree, [0, 0], [])).toEqual({ position: 'child', path: [] })
+  })
 })
