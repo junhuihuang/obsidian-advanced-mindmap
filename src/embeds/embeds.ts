@@ -76,13 +76,18 @@ class EmbedElement extends HTMLElement {
     await MarkdownRenderer.render(getApp(), `![[${linkText}]]`, this, sourcePath, this.component)
 
     // replace custom element with render output
-    const embedContainer = this.children[0].children[0]
+    const embedContainer = this.children[0].children[0] as HTMLElement
     this.replaceWith(embedContainer)
 
     const src = embedContainer.getAttribute('src')!
     const { path, subpath } = parseLinktext(src)
 
-    deleteText(embedContainer)
+    // `render()` loads the embed itself — unlike the deprecated
+    // `renderMarkdown()`, which only produced an empty container. Keep the
+    // container (the embed below needs its `src` and classes) but drop the
+    // rendered children, otherwise the embed is rendered twice: two images in
+    // one node, a note's content and title duplicated.
+    embedContainer.empty()
 
     const file = getApp().metadataCache.getFirstLinkpathDest(path, sourcePath)
     if (!(file instanceof TFile)) {
@@ -115,12 +120,6 @@ class EmbedElement extends HTMLElement {
 const alreadyRegistered = !!customElements.get('advmm-embed')
 if (!alreadyRegistered)
   customElements.define('advmm-embed', EmbedElement)
-
-function deleteText(parent: ParentNode) {
-  for (const node of Array.from(parent.childNodes))
-    if (node.nodeType === Node.TEXT_NODE)
-      parent.removeChild(node)
-}
 
 function getSourcePath(embedElement: EmbedElement) {
   const leafElement = embedElement.closest('.workspace-leaf')

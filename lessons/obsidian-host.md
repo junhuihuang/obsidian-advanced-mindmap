@@ -18,6 +18,31 @@ Never attach a `textarea` to the body to imitate an editor. The hidden cost of a
 hand-rolled editor — focus stealing, swallowed hotkeys, indentation, undo, spellcheck,
 syntax highlighting, preview — is redone for every host feature and always ends up worse.
 
+## `MarkdownRenderer.render()` already loads embeds — do not load them twice
+
+**Symptom.** Every `![[image.png]]` in a node showed two `<img>` elements, and a note
+embed showed its title and content twice.
+
+**Root cause.** `src/embeds/embeds.ts` renders `![[link]]` with `MarkdownRenderer.render()`
+to obtain the `internal-embed` container, then calls
+`app.embedRegistry.embedByExtension[ext]` to fill that container. That was written for the
+deprecated `renderMarkdown()`, which returned an **empty** container. `render()` fills it
+(media is loaded, note content rendered), so the registry call appends a second copy.
+
+**Do** keep the container (the registry needs its `src` attribute and classes) but empty
+it before handing it over:
+
+```ts
+const embedContainer = this.children[0].children[0] as HTMLElement
+this.replaceWith(embedContainer)
+const src = embedContainer.getAttribute('src')!
+// `render()` already rendered the embed; keep a single copy
+embedContainer.empty()
+```
+
+**Don't** treat `render()` output as a placeholder, and don't keep a `deleteText()`
+workaround: removing only text nodes leaves the first rendered copy in place.
+
 ## Host facts that keep biting (assume these are permanent)
 
 1. **Focus is stolen.** `textarea.focus()` only sticks while that leaf is the active one;
