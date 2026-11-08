@@ -18,6 +18,7 @@ English | [简体中文](README.zh-CN.md)
 - **Native to Obsidian.** Pinned and unpinned mindmap tabs, plus inline `markmap` code blocks inside notes.
 - **Markdown-native.** Headings, lists, checkboxes, tables, internal links, LaTeX and syntax-highlighted code render as nodes.
 - **Preview-style headings.** Every heading keeps the size and weight of its Markdown level, so the canvas reads like the preview of the same note. No badges or extra markers are added to the text: lists and prose stay at the body size. The header button left of *Fit window size* flattens the headings of the current canvas, for maps that need to fit a lot of nodes.
+- **Prose nodes, three modes.** The header button left of *Headings at preview size* decides how much of the note's plain text the canvas draws — *always* (every paragraph is a node, so prose gets the same map as headings and lists), *smart* (the default: only the paragraphs that introduce a list, a table or a code block — the line before `1.` / `-` is not prose, and the block would lose its context without it), or *never* (only headings, lists, tables and code blocks, for a note whose substance is in its headings). The button shows the mode it is in; the choice is per canvas and never touches the note.
 
 ## Installation
 

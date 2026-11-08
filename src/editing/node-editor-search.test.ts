@@ -461,10 +461,10 @@ describe('node editor search', () => {
       children: [
         {
           content: 'apple',
-          children: [{ content: 'banana', children: [] }],
-          payload: { fold: 1 },
+          children: [{ content: 'banana', children: [], payload: { advmmSourcePath: [0, 0] } }],
+          payload: { fold: 1, advmmSourcePath: [0] },
         },
-        { content: 'apricot', children: [] },
+        { content: 'apricot', children: [], payload: { advmmSourcePath: [1] } },
       ],
     }
 
@@ -485,12 +485,12 @@ describe('node editor search', () => {
         {
           content: 'apple',
           children: [
-            { content: 'banana', children: [] },
-            { content: 'cherry', children: [] },
+            { content: 'banana', children: [], payload: { advmmSourcePath: [0, 0] } },
+            { content: 'cherry', children: [], payload: { advmmSourcePath: [0, 1] } },
           ],
-          payload: { fold: 1 },
+          payload: { fold: 1, advmmSourcePath: [0] },
         },
-        { content: 'apricot', children: [] },
+        { content: 'apricot', children: [], payload: { advmmSourcePath: [1] } },
       ],
     }
 
@@ -507,8 +507,12 @@ describe('node editor search', () => {
     const revealChildren = vi.fn().mockResolvedValue(undefined)
     const root = {
       children: [
-        { content: 'apple', children: [{ content: 'banana', children: [] }] },
-        { content: 'apricot', children: [] },
+        {
+          content: 'apple',
+          children: [{ content: 'banana', children: [], payload: { advmmSourcePath: [0, 0] } }],
+          payload: { advmmSourcePath: [0] },
+        },
+        { content: 'apricot', children: [], payload: { advmmSourcePath: [1] } },
       ],
     }
 

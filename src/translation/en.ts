@@ -23,6 +23,11 @@ export default {
     zoomOut: 'Zoom out',
     fit: 'Fit window size',
     headingStyles: 'Headings at preview size',
+    proseNodes: {
+      always: 'Prose nodes: always',
+      smart: 'Prose nodes: smart (only the paragraphs before a list, table or code block)',
+      never: 'Prose nodes: never',
+    },
   },
   fileSettingsButton: 'Edit mindmap settings',
   blockSettingsButton: 'Edit block settings',

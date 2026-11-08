@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { getSourcePath, normalizeContent, tagSourcePaths } from 'src/editing/source-paths'
 import { parseSource } from 'src/editing/source-tree'
 import { parseInternalLinks } from 'src/internal-links/parse-internal-links'
-import { insertProseNodes } from './prose-nodes'
+import { dropEmptyWrappers, insertProseNodes } from './prose-nodes'
 
 
 const transformer = new Transformer()
@@ -210,5 +210,63 @@ describe('prose paragraphs as parents', () => {
     expect(root.content).toContain('<a href="金字塔思维">金字塔思维</a>')
     expect(root.content).toContain('<strong>bold</strong>')
     expect(normalizeContent(root.children[0].content)).toBe('item')
+  })
+})
+
+/** The pipeline of `transformMarkdown(..., { prose: false })`. */
+function renderPlain(markdown: string): IPureNode {
+  const { root } = transformer.transform(markdown)
+  const roots = parseSource(markdown)
+  tagSourcePaths(root, roots)
+  insertProseNodes(root, roots, text => transformer.md.renderInline(text), { structuralOnly: true })
+  dropEmptyWrappers(root)
+  parseInternalLinks(root)
+  return root
+}
+
+// With the switch off, the line that introduces a list is not "plain text": a
+// `1.` / `-` list without it loses its meaning, so it stays a node (and takes the
+// place of the empty wrapper markmap leaves for it).
+describe('plain-text nodes switched off', () => {
+  it('keeps the paragraph that introduces a list, as the list\'s parent', () => {
+    const root = renderPlain('# T\n\nprose\n\n- one\n- two\n')
+
+    expect(children(root)).toEqual([
+      {
+        text: 'prose',
+        path: [0, 0],
+        children: [
+          { text: 'one', path: [0, 0, 0] },
+          { text: 'two', path: [0, 0, 1] },
+        ],
+      },
+    ])
+  })
+
+  it('keeps the paragraph that introduces a table or a code block', () => {
+    const table = renderPlain('# T\n\nprose\n\n| a | b |\n| - | - |\n| 1 | 2 |\n')
+    expect(normalizeContent(table.children[0].content)).toBe('prose')
+    expect(table.children[0].children[0].content).toContain('<table')
+
+    const code = renderPlain('# T\n\nsee this\n\n```js\ncode()\n```\n')
+    expect(normalizeContent(code.children[0].content)).toBe('see this')
+    expect(code.children[0].children[0].content).toContain('code()')
+  })
+
+  it('leaves plain prose out', () => {
+    const root = renderPlain('# T\n\nfirst paragraph\n\nsecond paragraph\n')
+
+    expect(root.children).toEqual([])
+  })
+
+  it('keeps the order of the document around the kept paragraphs', () => {
+    const root = renderPlain('# T\n\nprose\n\n- one\n  - deep\n- two\n\nafter\n\n1. three\n')
+
+    expect(children(root).map(child => [child.text, child.path])).toEqual([
+      ['prose', [0, 0]],
+      ['after', [0, 1]],
+    ])
+    expect(children(root)[0].children.map(child => child.text)).toEqual(['one', 'two'])
+    expect(children(root)[1].children.map(child => child.text)).toEqual(['three'])
   })
 })

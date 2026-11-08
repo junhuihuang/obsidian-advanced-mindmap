@@ -38,9 +38,15 @@ export function createTreeUpdater(markmap: Markmap) {
     return renderedScope === scope && renderedMarkdown === markdown && !!markmap.state.data
   }
 
-  async function update(root: IPureNode, options: Partial<IMarkmapOptions>, markdown: string, scope: string) {
+  async function update(
+    root: IPureNode,
+    options: Partial<IMarkmapOptions>,
+    markdown: string,
+    scope: string,
+    { restructure = false }: { restructure?: boolean } = {},
+  ) {
     const sameScope = renderedScope === scope && !!markmap.state.data
-    if (sameScope && markdown === renderedMarkdown) return
+    if (sameScope && markdown === renderedMarkdown && !restructure) return
 
     let cursor = renderedMarkdown
     const edits: TreeEdit[] = []
@@ -52,13 +58,20 @@ export function createTreeUpdater(markmap: Markmap) {
       consumed++
       if (cursor === markdown) break
     }
-    const incremental = sameScope && consumed > 0 && cursor === markdown
+    // A structural toggle (a per-canvas switch that decides which nodes exist,
+    // e.g. "show plain text") changes the tree while the markdown and the scope
+    // stay the same. Reconcile the fresh tree onto the live one: `setData()`
+    // would reset every fold, while a path-keyed merge keeps the DOM and the
+    // fold of every node that survives — and re-parents the children of a node
+    // that disappears.
+    const structural = restructure && sameScope
+    const incremental = !structural && sameScope && consumed > 0 && cursor === markdown
     pending = incremental ? pending.slice(consumed) : []
     renderedMarkdown = markdown
     renderedScope = scope
     try {
-      if (incremental) {
-        reconcile(markmap, root, edits)
+      if (structural || incremental) {
+        reconcile(markmap, root, structural ? [] : edits)
         await markmap.renderData()
       } else {
         await markmap.setData(root, options)

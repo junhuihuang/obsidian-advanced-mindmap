@@ -76,3 +76,61 @@ move must resolve it through `resolveMoveTarget` (`lessons/markdown-parsing.md`)
 - A **new** split needs `openFile` first, then `setTimeout(100ms)` before
   `setEphemeralState` — Obsidian's `MarkdownView` is not ready earlier. Reusing an
   existing split can apply the state immediately.
+
+## Navigate the tree the canvas draws, not the source tree
+
+**Symptom.** With the header's plain-text switch off, `h`/`l` did nothing between a
+heading and its list items, and `j`/`k` jumped into a child level.
+
+**Root cause.** A source path is not a rendered level. `# T` / prose / `- one` puts the
+item at `[0, 0, 0]` (heading → paragraph → item), and any map that leaves the paragraph
+out (e.g. a paragraph markmap itself dropped) draws the item one level below the
+heading. `findNodeInDirection` used `path.length` as the level and `path.slice(0, -1)`
+as the parent, so both pointed at the missing level.
+
+The same holds for a node the canvas draws without a source path (markmap tags the
+nodes it was able to map): the drawn tree, never the document, decides.
+
+**Do** derive everything from `ordered` — the rendered paths in pre-order — in
+`navigation.ts`:
+
+- depth = the number of *drawn* ancestors (`renderedDepths`, a stack walk: a pre-order
+  list keeps every ancestor on the stack when a path arrives);
+- `left` = the closest preceding path one depth up (this also skips a level that is
+  not tracked, e.g. a list markmap's `addChild` bug removed);
+- `right` = `ordered[index + 1]` when it is a descendant, which is the rendered child.
+
+**Do** take the "first child" from the drawn list, never from the path
+(`[...path, 0]`). `revealFirstChild` (which `l` uses on a folded node) has to land on
+a node the canvas draws: with plain text off the first source child is a paragraph.
+It also has to drop the DOM index after the unfold (`invalidateIndex()`), because the
+mutation observer that would notice the re-render runs a microtask later.
+
+**Don't** assume `ordered.length` invariants the source tree: `visiblePaths()` filters a
+source pre-order by what is drawn, and filtering a pre-order list still yields a
+pre-order list.
+
+**Search too.** A hit on a node the canvas does not draw selects nothing and leaves the
+cursor invisible, so `runSearch` filters matches through `drawnDataPaths()` (markmap data,
+so folded nodes still count). `revealSearchPath` walks that map by path instead of
+`children[path[i]]`, which points at the wrong node once a level is skipped.
+
+## A selection can outlive its node — re-anchor it after a structural render
+
+**Symptom.** Turning the plain-text switch off while a paragraph was selected left the
+cursor on nothing: no highlight, and every arrow key dead until the user clicked a node.
+
+**Root cause.** `visiblePaths()` only holds drawn paths, so `findNodeInDirection` finds no
+index for the stale path and returns `undefined`.
+
+**Do**
+
+- `nodeEditorHandle.dropVanishedSelection()` (`pruneVanishedSelection`) keeps the closest
+  drawn ancestor as the cursor, and drops the caches (`dom`, `visibleCache`) the render
+  invalidated.
+- Call it from the renderer **only after a render it knows removed nodes**
+  (`restructure` in `renderer-tab.ts`).
+
+**Don't** prune inside the render microtask: the new-node flow selects the node it is
+about to create *before* markmap draws it, so a prune there eats the fresh selection
+(`node-editor-highlight-restore.test.ts`).

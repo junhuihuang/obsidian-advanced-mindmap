@@ -16,6 +16,11 @@ export default {
     zoomOut: '缩小',
     fit: '适应窗口大小',
     headingStyles: '标题使用预览字号',
+    proseNodes: {
+      always: '文本节点：总是显示',
+      smart: '文本节点：智能（只显示列表 / 表格 / 代码块前面的那一段）',
+      never: '文本节点：不显示',
+    },
   },
   fileSettingsButton: '文件级别设置',
   blockSettingsButton: '代码框级别设置',

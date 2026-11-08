@@ -16,6 +16,11 @@ export default {
     zoomOut: '縮小',
     fit: '適應視窗大小',
     headingStyles: '標題使用預覽字號',
+    proseNodes: {
+      always: '文字節點：總是顯示',
+      smart: '文字節點：智慧（只顯示清單 / 表格 / 程式碼區塊前面的那一段）',
+      never: '文字節點：不顯示',
+    },
   },
   fileSettingsButton: '文件級別設置',
   blockSettingsButton: '代碼框級別設置',

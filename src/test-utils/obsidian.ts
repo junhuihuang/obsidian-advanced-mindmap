@@ -64,6 +64,10 @@ export const Platform = {
 
 export function setIcon(_el: HTMLElement, _icon: string): void {}
 
+export function setTooltip(el: HTMLElement, tooltip: string, _options?: unknown): void {
+  el.setAttribute('aria-label', tooltip)
+}
+
 export function getLanguage(): string { return 'en' }
 
 export function getFrontMatterInfo(content: string): {

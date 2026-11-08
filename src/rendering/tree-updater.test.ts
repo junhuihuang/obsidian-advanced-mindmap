@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { applyEdit, moveEdits, moveNode, moveNodes, parseSource } from 'src/editing/source-tree'
 import { getSourcePath, tagSourcePaths } from 'src/editing/source-paths'
+import { insertProseNodes } from './prose-nodes'
 import { createTreeUpdater } from './tree-updater'
 
 vi.stubGlobal('ResizeObserver', class {
@@ -18,20 +19,22 @@ const options = { duration: 0, embedGlobalCSS: false, initialExpandLevel: -1 }
 const instances: Markmap[] = []
 afterEach(() => { instances.splice(0).forEach(mm => mm.destroy()); document.body.innerHTML = '' })
 
-function transformed(markdown: string): IPureNode {
+function transformed(markdown: string, prose = true): IPureNode {
   const { root } = transformer.transform(markdown)
-  tagSourcePaths(root, parseSource(markdown))
+  const roots = parseSource(markdown)
+  tagSourcePaths(root, roots)
+  if (prose) insertProseNodes(root, roots, text => transformer.md.renderInline(text))
   return root
 }
 
-async function setup(markdown: string, initialExpandLevel = -1) {
+async function setup(markdown: string, initialExpandLevel = -1, prose = true) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   document.body.append(svg)
   const mm = Markmap.create(svg, options)
   instances.push(mm)
   mm.transition = (sel: unknown) => sel as never
   const updater = createTreeUpdater(mm)
-  await updater.update(transformed(markdown), { ...options, initialExpandLevel }, markdown, 'file')
+  await updater.update(transformed(markdown, prose), { ...options, initialExpandLevel }, markdown, 'file')
   const group = (text: string) => Array.from(svg.querySelectorAll<SVGGElement>('g.markmap-node'))
     .find(g => g.textContent === text)!
   const data = (text: string): INode => (group(text) as unknown as { __data__: INode }).__data__
@@ -281,5 +284,37 @@ describe('incremental markmap editing with real data joins', () => {
     expect(group('c')).toBeUndefined()
     expect(group('a')).toBeDefined()
     expect(group('b')).toBeDefined()
+  })
+})
+
+describe('structural toggle (plain text as nodes on/off)', () => {
+  const text = '# Root\n\nIntro paragraph.\n\n- a\n  - a1\n- b\n'
+
+  it('reconciles a tree without the prose node and keeps the surviving nodes and folds', async () => {
+    const { mm, updater, group, data } = await setup(text)
+    expect(group('Intro paragraph.')).toBeDefined()
+    const a = data('a'), b = data('b')
+    const aGroup = group('a')
+    await mm.toggleNode(a)
+    const setData = vi.spyOn(mm, 'setData')
+
+    await updater.update(transformed(text, false), options, text, 'file', { restructure: true })
+
+    expect(setData).not.toHaveBeenCalled()
+    // The paragraph is gone; its list items moved up under the heading and kept
+    // their identity, DOM and fold.
+    expect(group('Intro paragraph.')).toBeUndefined()
+    expect(group('a')).toBe(aGroup)
+    expect(data('a')).toBe(a)
+    expect(a.payload?.fold).toBe(1)
+    expect(data('b')).toBe(b)
+
+    // Both directions: the paragraph returns and still owns the folded item.
+    await updater.update(transformed(text), options, text, 'file', { restructure: true })
+
+    expect(setData).not.toHaveBeenCalled()
+    expect(group('Intro paragraph.')).toBeDefined()
+    expect(data('a')).toBe(a)
+    expect(a.payload?.fold).toBe(1)
   })
 })

@@ -110,6 +110,12 @@ export interface NodeEditorHandle {
   destroy: () => void
   /** Focuses the editor so keyboard navigation/editing works. */
   focus: () => void
+  /**
+   * Re-anchors the selection after a render that changed which nodes exist (see
+   * `pruneVanishedSelection`). Uses the markmap data tree, so folded nodes still
+   * count as drawn.
+   */
+  dropVanishedSelection: () => void
 }
 
 /**
@@ -1256,9 +1262,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   let highlightScheduled = false
   const observer = new MutationObserver(records => {
     if (records.some(record => record.type !== 'attributes')) {
-      dom = null
-      dropBoxCache = null
-      visibleCache = null
+      invalidateIndex()
       // The connectors may be new elements too, so they are marked again.
       focusLinksKey = ''
     }
@@ -1446,6 +1450,14 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   container?.addEventListener('blur', onBlur)
 
   return {
+    /**
+     * Re-anchors the selection after a render that changed *which* nodes exist
+     * (the plain-text switch drops every paragraph node at once). A selected
+     * paragraph has left the canvas; without this the cursor stays on a path
+     * that is no longer rendered, and every arrow key would be dead because
+     * navigation only moves between drawn nodes.
+     */
+    dropVanishedSelection: pruneVanishedSelection,
     destroy() {
       observer.disconnect()
       cancelResize()
@@ -1563,9 +1575,41 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     applyHighlight()
   }
 
+  /**
+   * Drops selected paths the last render no longer draws.
+   *
+   * Rendered purposefully, not on every render: an edit selects the node it is
+   * about to create *before* markmap draws it (see the new-node flow), so a
+   * prune in the render cycle would eat that selection.
+   */
+  function pruneVanishedSelection() {
+    if (selectedPaths.length === 0) return
+    // The render that removed the nodes has already touched the DOM, but the
+    // cached index and path list still list them.
+    invalidateIndex()
+    const drawn = drawnDataPaths()
+    if (!drawn) return
+    const kept = selectedPaths.filter(path => drawn.has(pathKey(path)))
+    if (kept.length === selectedPaths.length) return
+
+    const primaryDrawn = !!primaryPath && drawn.has(pathKey(primaryPath))
+    let keep = primaryDrawn ? primaryPath : null
+    if (!keep && primaryPath) {
+      let ancestor = primaryPath.slice(0, -1)
+      while (ancestor.length > 0 && !drawn.has(pathKey(ancestor))) ancestor = ancestor.slice(0, -1)
+      if (drawn.has(pathKey(ancestor))) keep = ancestor
+    }
+    setSelection(keep ? [keep] : kept.slice(-1))
+  }
+
   /** Shift-click: selects every node between the anchor and `path`. */
   function extendSelection(path: number[]) {
+    // Only nodes the canvas draws can be selected: with plain-text nodes off the
+    // source range also covers the paragraphs that are not drawn, and a hidden
+    // paragraph would be deleted by a range delete the user cannot see.
+    const byPath = domIndex().byPath
     selectedPaths = pathRange(sourceRoots(), anchorPath ?? path, path)
+      .filter(candidate => byPath.has(pathKey(candidate)))
     primaryPath = path
     lastPath = path
     applyHighlight()
@@ -1652,6 +1696,13 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   }
 
   /** Finds the rendered node for a source path (survives re-renders). */
+  /** Forgets the DOM index and the derived path lists; the next lookup rescans. */
+  function invalidateIndex() {
+    dom = null
+    dropBoxCache = null
+    visibleCache = null
+  }
+
   function findGroupByPath(path: number[]): SVGGElement | null {
     return domIndex().byPath.get(pathKey(path)) ?? null
   }
@@ -1709,10 +1760,18 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (data.payload?.fold) {
       if (revealChildren) await revealChildren(data)
       else await toggleFold?.(data)
+      // The render replaced the nodes of the revealed subtree, and the observer
+      // that would notice is asynchronous: without this the child is not in the
+      // index yet and the cursor would not move.
+      invalidateIndex()
     }
 
-    const child = [...path, 0]
-    if (!findGroupByPath(child)) return
+    // The first child the canvas draws, not `[...path, 0]`: a source child can
+    // be a paragraph this map does not draw
+    // (`lessons/keyboard-and-selection.md`), and markmap can wrap the list below
+    // one in a node of its own. The drawn paths know both.
+    const child = findNodeInDirection(visiblePaths(), path, 'right')
+    if (!child) return
 
     if (extend) {
       if (!anchorPath) anchorPath = path
@@ -2089,9 +2148,13 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (!isQueryEmpty(query)) lastSearchQuery = query
     const roots = sourceRoots()
     if (!sourceCache!.searchNodes) sourceCache!.searchNodes = collectSearchNodes(roots)
+    const drawn = drawnDataPaths()
     searchMatches = isQueryEmpty(query)
       ? []
+      // A node that is not on the canvas cannot be selected, so it must not
+      // count as a hit either.
       : findMatches(sourceCache!.searchNodes, query)
+        .filter(path => !drawn || drawn.has(pathKey(path)))
     searchIndex = 0
     applyHighlight()
     updateSearchCount()
@@ -2185,22 +2248,39 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
 
   /** Unfolds the ancestors of `path` so that a folded match becomes visible. */
   async function revealSearchPath(path: number[]) {
-    const root = getFoldRoot?.()
-    if (!root) return
+    const drawn = drawnDataPaths()
+    if (!drawn) return
 
-    let node: FoldNode | undefined = root
-    for (let i = 0; i < path.length; i++) {
-      const child: FoldNode | undefined = node?.children?.[path[i]]
-      if (!child) return
-
-      // Reveal a parent whose children are hidden; the match itself only needs
-      // to be visible, not expanded.
-      if (i < path.length - 1 && child.payload?.fold) {
-        if (revealChildren) await revealChildren(child as unknown as IPureNode)
-        else await toggleFold?.(child as unknown as IPureNode)
-      }
-      node = child
+    // Root down. A paragraph the canvas does not draw is simply absent from the
+    // map (walking `children[path[i]]` would unfold the wrong nodes), and an
+    // open ancestor needs no work: the match itself only has to be visible, not
+    // expanded.
+    for (let length = 1; length < path.length; length++) {
+      const node = drawn.get(pathKey(path.slice(0, length)))
+      if (!node?.payload?.fold) continue
+      if (revealChildren) await revealChildren(node as unknown as IPureNode)
+      else await toggleFold?.(node as unknown as IPureNode)
     }
+  }
+
+  /**
+   * Source path → markmap data node, folded subtrees included. The source tree
+   * also holds nodes that this map does not draw at all (plain paragraphs once
+   * "plain text as nodes" is off), so search must be limited to what it drew.
+   */
+  function drawnDataPaths(): Map<string, FoldNode> | undefined {
+    const root = getFoldRoot?.()
+    if (!root) return undefined
+    const byPath = new Map<string, FoldNode>()
+    const walk = (node: FoldNode) => {
+      const path = getSourcePath(node as unknown as IPureNode)
+      if (path) byPath.set(pathKey(path), node)
+      for (const child of node.children ?? []) walk(child)
+    }
+    walk(root)
+    // A tree whose nodes carry no source path cannot be matched against the
+    // document, so there is nothing to filter with.
+    return byPath.size > 0 ? byPath : undefined
   }
 
   /** Keys handled by the search input itself (while it owns the keyboard). */

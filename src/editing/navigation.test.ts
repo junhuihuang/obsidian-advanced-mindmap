@@ -17,6 +17,17 @@ const ordered = [[0], [0, 0], [0, 1], [0, 1, 0], [0, 2], [1], [1, 0]]
 // Same tree, but with the synthetic markmap root (`[]`) rendered first.
 const orderedWithRoot = [[], [0], [0, 0], [0, 1], [0, 1, 0], [0, 2], [1], [1, 0]]
 
+// "Plain text as nodes" switched off: the paragraph `[0, 0]` is not on the
+// canvas, so its list items hang one level below the heading `[0]` and the
+// source paths are deeper than the levels the map draws.
+//
+//   [0]            level 1
+//     [0,0,0]      level 2  (item of the paragraph `[0,0]`)
+//     [0,0,1]      level 2
+//     [0,1]        level 2
+//       [0,1,0]    level 3
+const withoutProse = [[0], [0, 0, 0], [0, 0, 1], [0, 1], [0, 1, 0]]
+
 describe('findNodeInDirection', () => {
   it('moves down to the next sibling', () => {
     expect(findNodeInDirection(ordered, [0, 0], 'down')).toEqual([0, 1])
@@ -65,6 +76,23 @@ describe('findNodeInDirection', () => {
   it('does not move to a hidden child', () => {
     const folded = [[0], [0, 0]]
     expect(findNodeInDirection(folded, [0, 0], 'right')).toBeUndefined()
+  })
+
+  describe('with plain-text nodes switched off', () => {
+    it('skips an unrendered paragraph between parent and child', () => {
+      expect(findNodeInDirection(withoutProse, [0], 'right')).toEqual([0, 0, 0])
+      expect(findNodeInDirection(withoutProse, [0, 0, 0], 'left')).toEqual([0])
+    })
+
+    it('compares the rendered depth instead of the path length', () => {
+      // Previous sibling first, then across to the same rendered level.
+      expect(findNodeInDirection(withoutProse, [0, 0, 0], 'down')).toEqual([0, 0, 1])
+      expect(findNodeInDirection(withoutProse, [0, 0, 1], 'down')).toEqual([0, 1])
+      expect(findNodeInDirection(withoutProse, [0, 1], 'up')).toEqual([0, 0, 1])
+      // `[0,1,0]` is a child of `[0,1]`, not a sibling of the list items.
+      expect(findNodeInDirection(withoutProse, [0, 0, 1], 'down')).not.toEqual([0, 1, 0])
+      expect(findNodeInDirection(withoutProse, [0, 1], 'right')).toEqual([0, 1, 0])
+    })
   })
 
   describe('with the synthetic root rendered', () => {

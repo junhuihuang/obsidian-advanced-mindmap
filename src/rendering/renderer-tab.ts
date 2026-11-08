@@ -5,6 +5,7 @@ import { TFile, WorkspaceLeaf } from 'obsidian'
 import { FileSettings, globalSettings } from 'src/settings/filesystem'
 import { ScreenshotColors, takeScreenshot } from 'src/rendering/screenshot'
 import { createMarkmap, getOptions, transformMarkdown, splitMarkdown } from './renderer-common'
+import { nextProseMode, proseTransformOptions, type ProseMode } from './prose-mode'
 import { createMindmapEditor } from './editor-wiring'
 import MindmapView from 'src/views/view'
 import { svgs } from 'src/internal-links/handle-internal-links'
@@ -40,6 +41,11 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
   let destroyed = false
   let sourceRevision = 0
   let pendingWrites = 0
+  // Per-canvas: how much plain text is drawn as nodes (`ProseMode`). The value
+  // the live tree was built with is tracked separately, so a switch re-renders
+  // through `treeUpdater`'s structural path instead of `setData()`.
+  let proseMode: ProseMode = 'smart'
+  let renderedProseMode: ProseMode = 'smart'
   const treeUpdater = createTreeUpdater(markmap)
 
   const editor = createMindmapEditor(markmap, {
@@ -83,6 +89,18 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
       const on = !svg.classList.contains('advmm-heading-styles')
       svg.classList.toggle('advmm-heading-styles', on)
       return on
+    },
+    /** How much plain text this canvas draws right now. */
+    proseMode: () => proseMode,
+    /**
+     * Switches the canvas to the next `ProseMode` and returns it. Paragraphs are
+     * real nodes, so this re-renders the tree: the fresh structure is reconciled
+     * onto the live one, keeping every fold.
+     */
+    cycleProseNodes: () => {
+      proseMode = nextProseMode(proseMode)
+      if (currentFile) void render(currentFile, state.markdown)
+      return proseMode
     },
     /** Called with `true`/`false` as the markdown split opens or closes. */
     onMarkdownSourceChange: (listener: (open: boolean) => void) => {
@@ -139,9 +157,9 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     const { settings: fileSettings } = splitMarkdown('file', markdown)
     const settings: FileSettings = { ...globalSettings, ...fileSettings }
     const scope = `${file.path}:${file.basename}:${JSON.stringify(settings)}`
-    if (treeUpdater.isCurrent(markdown, scope)) return
+    if (treeUpdater.isCurrent(markdown, scope) && proseMode === renderedProseMode) return
     state.sourceRoots = parseSource(markdown)
-    let rootNode = transformMarkdown(markdown, state.sourceRoots)
+    let rootNode = transformMarkdown(markdown, state.sourceRoots, proseTransformOptions(proseMode))
     const markmapOptions = getOptions(settings)
 
     if (settings.titleAsRootNode) {
@@ -156,7 +174,13 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
 
     state.markmapOptions = markmapOptions
 
-    await treeUpdater.update(rootNode, markmapOptions, markdown, scope)
+    const restructure = proseMode !== renderedProseMode
+    await treeUpdater.update(rootNode, markmapOptions, markdown, scope, { restructure })
+    renderedProseMode = proseMode
+    // The paragraphs just left (or returned to) the canvas. A selected one is not
+    // a valid cursor any more: move it to its nearest drawn ancestor, or every
+    // arrow key would be dead until the user clicks a node again.
+    if (restructure) editor.dropVanishedSelection()
     // Per-node widths live in the plugin data, not the markdown; apply them as
     // inline label styles and re-layout before the caller fits the view.
     if (applyNodeWidths(svg, nodeWidthsFor(file.path))) await markmap.renderData()

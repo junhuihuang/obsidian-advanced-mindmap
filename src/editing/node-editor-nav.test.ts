@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { attachNodeEditor } from './node-editor'
 import type { FoldNode } from './fold'
+import { parseSource } from './source-tree'
 
 // Obsidian augments the DOM with these helpers; provide a minimal version.
 const proto = Element.prototype as any
@@ -203,5 +204,138 @@ describe('navigation into a code block', () => {
     const { codeGroup } = setup()
     codeGroup.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
     expect(codeGroup.classList.contains('advmm-selected')).toBe(true)
+  })
+})
+
+// A path level the canvas does not draw (a paragraph markmap dropped, or a node
+// the canvas has no source path for): the list items sit one level below the
+// heading on the canvas while their source path is two levels deeper.
+describe('navigation across a level the canvas does not draw', () => {
+  afterEach(() => { document.body.innerHTML = '' })
+
+  const MARKDOWN = '# T\n\nprose\n\n- one\n- two\n'
+
+  /** `proseDrawn` = the map before the switch was flipped, paragraph still on it. */
+  function setup(proseDrawn = false) {
+    document.body.innerHTML = ''
+    const container = document.createElement('div')
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    container.append(svg)
+    document.body.append(container)
+
+    interface FakeNode { content: string; children: FakeNode[]; payload: { advmmSourcePath: number[] } }
+    const node = (content: string, path: number[]): FakeNode => ({ content, children: [], payload: { advmmSourcePath: path } })
+    const heading = node('T', [0])
+    const prose = node('prose', [0, 0])
+    const one = node('one', [0, 0, 0])
+    const two = node('two', [0, 0, 1])
+
+    const headingGroup = groupFor(svg, heading)
+    const proseGroup = groupFor(svg, prose)
+    const oneGroup = groupFor(svg, one)
+    const twoGroup = groupFor(svg, two)
+    const roots = parseSource(MARKDOWN)
+
+    heading.children = proseDrawn ? [prose] : [one, two]
+    if (proseDrawn) prose.children = [one, two]
+    else proseGroup.remove()
+
+    const editor = attachNodeEditor({
+      svg: svg as unknown as SVGSVGElement,
+      getMarkdown: () => MARKDOWN,
+      getSourceRoots: () => roots,
+      setMarkdown: vi.fn(),
+      getFoldRoot: () => ({ children: [heading] }) as unknown as FoldNode,
+    })
+
+    const press = (key: string, init: KeyboardEventInit = {}) => {
+      container.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }))
+    }
+    const selected = () => [
+      [headingGroup, 'T'],
+      [proseGroup, 'prose'],
+      [oneGroup, 'one'],
+      [twoGroup, 'two'],
+    ].filter(([group]) => (group as SVGGElement).classList.contains('advmm-selected'))
+      .map(([, text]) => text)
+
+    /** What the renderer does after it re-rendered without the prose nodes. */
+    const dropProse = () => {
+      proseGroup.remove()
+      heading.children = [one, two]
+      editor.dropVanishedSelection()
+    }
+
+    return { press, selected, dropProse, editor }
+  }
+
+  it('walks from the heading into the list and back across the hidden paragraph', () => {
+    const { press, selected } = setup()
+    press('ArrowDown')
+    expect(selected()).toEqual(['T'])
+
+    press('l')
+    expect(selected()).toEqual(['one'])
+
+    press('j')
+    expect(selected()).toEqual(['two'])
+
+    press('h')
+    expect(selected()).toEqual(['T'])
+  })
+
+  // The empty node markmap leaves in front of a list has no source path, so it
+  // cannot be selected: revealing one level must not stop there.
+  it('reveals the first selectable child of a folded node', async () => {
+    document.body.innerHTML = ''
+    const container = document.createElement('div')
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    container.append(svg)
+    document.body.append(container)
+
+    const heading: Record<string, unknown> = { content: 'T', children: [], payload: { advmmSourcePath: [0], fold: 1 } }
+    const item = { content: 'one', children: [], payload: { advmmSourcePath: [0, 0, 0] } }
+    // The wrapper markmap builds for the paragraph above the list.
+    const wrapper = { content: '', children: [item], payload: {} }
+    heading.children = [wrapper]
+
+    const headingGroup = groupFor(svg, heading as never)
+    const itemGroup = groupFor(svg, item)
+    // Folded: the render takes the subtree out of the DOM.
+    itemGroup.remove()
+
+    const revealChildren = vi.fn(async () => {
+      heading.payload = { advmmSourcePath: [0], fold: 0 }
+      svg.append(itemGroup)
+    })
+    attachNodeEditor({
+      svg: svg as unknown as SVGSVGElement,
+      getMarkdown: () => MARKDOWN,
+      getSourceRoots: () => parseSource(MARKDOWN),
+      setMarkdown: vi.fn(),
+      getFoldRoot: () => ({ children: [heading] }) as unknown as FoldNode,
+      revealChildren,
+    })
+
+    headingGroup.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+    container.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', bubbles: true, cancelable: true }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(revealChildren).toHaveBeenCalledTimes(1)
+    expect(itemGroup.classList.contains('advmm-selected')).toBe(true)
+  })
+
+  it('moves the cursor off a selected paragraph that left the canvas', () => {
+    const { press, selected, dropProse } = setup(true)
+    press('ArrowDown')
+    press('l')
+    expect(selected()).toEqual(['prose'])
+
+    dropProse()
+    expect(selected()).toEqual(['T'])
+
+    // The arrow keys work again instead of pointing at a node that is not drawn.
+    press('l')
+    expect(selected()).toEqual(['one'])
   })
 })

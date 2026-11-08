@@ -12,6 +12,16 @@ interface SourceEntry {
   path: number[]
 }
 
+export interface ProseNodeOptions {
+  /**
+   * Insert only the paragraphs that introduce a rendered block (a list, a table,
+   * a code block) and leave plain prose out — the canvas's `smart` prose mode.
+   * `1.` / `-` / `|` in front of a paragraph is not plain text, and the block
+   * would lose its context without that line.
+   */
+  structuralOnly?: boolean
+}
+
 /**
  * Turns prose paragraphs into real markmap nodes.
  *
@@ -23,7 +33,12 @@ interface SourceEntry {
  *
  * The tree must already be tagged with source paths (`tagSourcePaths`).
  */
-export function insertProseNodes(root: IPureNode, roots: SourceNode[], renderInline: RenderInline): void {
+export function insertProseNodes(
+  root: IPureNode,
+  roots: SourceNode[],
+  renderInline: RenderInline,
+  { structuralOnly = false }: ProseNodeOptions = {},
+): void {
   // markmap collapses a synthetic root that has only one rendered child. When
   // other top-level nodes are paragraphs (which markmap dropped), that collapsed
   // node would swallow those paragraphs. Give the document a real synthetic
@@ -38,8 +53,18 @@ export function insertProseNodes(root: IPureNode, roots: SourceNode[], renderInl
   const sourcePath = new Map<SourceNode, number[]>()
   collectSourceEntries(roots, [], sourceEntries, sourcePath)
 
+  // Paragraphs whose subtree holds something markmap drew: those are the ones an
+  // `structuralOnly` run keeps.
+  const withBlock = new Set<string>()
+  if (structuralOnly) {
+    for (const { node, path } of sourceEntries) {
+      if (node.kind === 'paragraph' && hasRenderedBlock(node, path, byPath)) withBlock.add(pathKey(path))
+    }
+  }
+
   for (const { node, path } of sourceEntries) {
     if (node.kind !== 'paragraph') continue
+    if (structuralOnly && !withBlock.has(pathKey(path))) continue
 
     const parentPath = path.slice(0, -1)
     const parent = byPath.get(pathKey(parentPath))
@@ -112,6 +137,35 @@ export function insertProseNodes(root: IPureNode, roots: SourceNode[], renderInl
     parent.children.splice(insertAt, 0, paragraph)
     byPath.set(pathKey(path), paragraph)
   }
+}
+
+/**
+ * Flattens the empty wrappers markmap leaves behind for a plain paragraph that
+ * introduces a list (`<p>` followed by `<ul>`): they carry no source path and no
+ * text, only the list.
+ *
+ * Nothing fills one in when the canvas draws no paragraph there, so it would be
+ * painted as an empty node — and one revealed level of `l` lands on it, which
+ * cannot be selected, so the cursor would not move at all. Its children take its
+ * place.
+ *
+ * Only for `prose: false`: `insertProseNodes` turns these same wrappers into the
+ * paragraph's node.
+ */
+export function dropEmptyWrappers(node: IPureNode): void {
+  node.children = node.children.flatMap(child => {
+    dropEmptyWrappers(child)
+    const wrapper = child.content === '' && !getSourcePath(child)
+    return wrapper ? child.children : [child]
+  })
+}
+
+/** Does anything below `node` end up in the rendered tree? */
+function hasRenderedBlock(node: SourceNode, path: number[], byPath: Map<string, IPureNode>): boolean {
+  return node.children.some((child, index) => {
+    const childPath = [...path, index]
+    return byPath.has(pathKey(childPath)) || hasRenderedBlock(child, childPath, byPath)
+  })
 }
 
 function wrapInSyntheticRoot(root: IPureNode): void {

@@ -13,6 +13,21 @@ of every node, so existing folds are lost and the DOM is rebuilt from scratch.
 - Finish with `markmap.renderData()`. Never `setData()` / `_initializeData()`.
 - Every edit operation (insert, setText, remove, move) must produce a `TreeEdit` and
   hand it to `treeUpdater`.
+- A per-canvas switch that changes **which nodes exist** (e.g. "plain text as nodes")
+  is structural while its markdown stays identical: pass `{ restructure: true }` to
+  `treeUpdater.update()`. It reconciles the fresh tree by source path, so the surviving
+  nodes keep their DOM and fold and the children of a vanished node are re-parented.
+  `setData()` would reset every fold of that canvas.
+- The plain-text switch has three modes (`ProseMode` in `prose-mode.ts`, default
+  `smart`); always build the transform options from `proseTransformOptions(mode)`
+  instead of spreading booleans around the view, the renderer and the tests.
+  - `smart` (default) is `insertProseNodes(..., { structuralOnly: true })`: only the
+    paragraphs that introduce a rendered block (a list, a table, a code block) become
+    nodes. A list without the line that introduces it has no context, so that line is
+    not "plain text" and the mode must not drop it.
+  - `never` drops the rest and finishes with `dropEmptyWrappers` (`prose-nodes.ts`):
+    markmap leaves an empty wrapper where a paragraph was dropped, and it would be
+    drawn as an empty bubble that `l` can land on but nothing can select.
 
 **Don't**
 

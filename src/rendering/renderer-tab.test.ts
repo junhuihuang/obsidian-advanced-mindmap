@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   setData: vi.fn(), fit: vi.fn(), rescale: vi.fn(), destroy: vi.fn(), renderData: vi.fn(),
   context: null as any,
   state: {} as any,
-  editor: { focus: vi.fn(), destroy: vi.fn() },
+  editor: { focus: vi.fn(), destroy: vi.fn(), dropVanishedSelection: vi.fn() },
   transform: vi.fn(() => ({ content: '', children: [] })),
   cachedRead: vi.fn(), modify: vi.fn(), settings: { animationDuration: 0 } as Record<string, unknown>,
   svgs: new Map(),
@@ -126,7 +126,36 @@ describe('TabRenderer lifecycle and render workload', () => {
     await r.firstRender(a)
     mocks.transform.mockClear()
     await Promise.all([r.render(a, '- one'), r.render(a, '- two'), r.render(a, '- latest')])
-    expect(mocks.transform.mock.calls).toEqual([['- latest', expect.any(Array)]])
+    expect(mocks.transform.mock.calls).toEqual([['- latest', expect.any(Array), { prose: true, structuralOnly: true }]])
+  })
+
+  it('cycles the three plain-text modes of this canvas without rebuilding the tree', async () => {
+    const r = renderer()
+    await r.firstRender(a)
+    // Smart is the default: only the paragraphs that introduce a list are drawn.
+    expect(r.proseMode()).toBe('smart')
+    mocks.transform.mockClear()
+    mocks.setData.mockClear()
+
+    expect(r.cycleProseNodes()).toBe('never')
+    await vi.waitFor(() => expect(mocks.transform).toHaveBeenCalledWith('- a', expect.any(Array), { prose: false, structuralOnly: false }))
+    await new Promise(done => setTimeout(done, 0))
+    // A structural switch reconciles onto the live tree; `setData` would reset
+    // every fold of the canvas.
+    expect(mocks.setData).not.toHaveBeenCalled()
+    // The paragraphs left the canvas, so a selection on one has to be re-anchored.
+    expect(mocks.editor.dropVanishedSelection).toHaveBeenCalled()
+
+    expect(r.cycleProseNodes()).toBe('always')
+    await vi.waitFor(() => expect(mocks.transform).toHaveBeenCalledWith('- a', expect.any(Array), { prose: true, structuralOnly: false }))
+    await new Promise(done => setTimeout(done, 0))
+    expect(mocks.setData).not.toHaveBeenCalled()
+
+    expect(r.cycleProseNodes()).toBe('smart')
+    await vi.waitFor(() => expect(mocks.transform).toHaveBeenCalledWith('- a', expect.any(Array), { prose: true, structuralOnly: true }))
+    await new Promise(done => setTimeout(done, 0))
+    expect(mocks.setData).not.toHaveBeenCalled()
+    r.destroy()
   })
 
   it('drives the markmap from the header zoom and fit actions', () => {

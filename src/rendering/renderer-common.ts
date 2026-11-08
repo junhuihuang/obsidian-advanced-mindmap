@@ -17,7 +17,7 @@ import type { FoldNode, FoldPlan } from 'src/editing/fold'
 import { revealAll, revealOneLevel } from 'src/editing/fold'
 import { parseSource, type SourceNode } from 'src/editing/source-tree'
 import { tagSourcePaths } from 'src/editing/source-paths'
-import { insertProseNodes } from './prose-nodes'
+import { dropEmptyWrappers, insertProseNodes } from './prose-nodes'
 
 
 const styleEl = createEl('style', {
@@ -41,11 +41,32 @@ function pick<T extends object, K extends keyof T>(keys: K[], obj: T): Pick<T, K
   return result
 }
 
-export function transformMarkdown(markdown: string, sourceRoots: SourceNode[] = parseSource(markdown)) {
+/**
+ * `prose: false` leaves plain paragraphs out of the tree, so a map only shows
+ * headings, lists, tables and code blocks. `structuralOnly` keeps the paragraph
+ * that introduces one of those (the line before a `1.` / `-` list): it is not
+ * plain text, and the block would lose its context without it. Both are set by
+ * `proseTransformOptions`, one per `ProseMode`.
+ */
+export interface TransformOptions {
+  prose?: boolean
+  structuralOnly?: boolean
+}
+
+export function transformMarkdown(
+  markdown: string,
+  sourceRoots: SourceNode[] = parseSource(markdown),
+  { prose = true, structuralOnly = false }: TransformOptions = {},
+) {
   const { root, features } = transformer.transform(markdown)
   loadAssets(features)
   tagSourcePaths(root, sourceRoots)
-  insertProseNodes(root, sourceRoots, text => transformer.md.renderInline(text))
+  // `structuralOnly` inserts just the paragraphs that introduce a list, a table
+  // or a code block; with `prose: false` the rest is left out and anything markmap
+  // wrapped for a dropped paragraph is flattened, or the canvas would draw an
+  // empty node (`dropEmptyWrappers`).
+  insertProseNodes(root, sourceRoots, text => transformer.md.renderInline(text), { structuralOnly: structuralOnly || !prose })
+  if (!prose) dropEmptyWrappers(root)
   parseInternalLinks(root)
   nodeParams(root)
   tagNodeWidthKeys(root, sourceRoots)

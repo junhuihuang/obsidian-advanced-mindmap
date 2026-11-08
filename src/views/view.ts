@@ -1,11 +1,23 @@
-import { ItemView, Menu, WorkspaceLeaf } from 'obsidian'
+import { ItemView, Menu, setIcon, setTooltip, WorkspaceLeaf } from 'obsidian'
 
 import { MM_VIEW_TYPE } from 'src/constants'
 import { TabRenderer } from 'src/rendering/renderer-tab'
+import type { ProseMode } from 'src/rendering/prose-mode'
 import { strings } from 'src/translation'
 import Callbag from 'src/utilities/callbag'
 import { setMarkdownSourceIcon } from './action-icons'
 
+
+/**
+ * One glyph per plain-text mode, so the header button shows which one it is in:
+ * a pilcrow for "every paragraph", a list for "only the paragraphs that
+ * introduce a list", a crossed-out eye for "never".
+ */
+const PROSE_ICONS: Record<ProseMode, string> = {
+  always: 'pilcrow',
+  smart: 'list-tree',
+  never: 'eye-off',
+}
 
 export default class MindmapView extends ItemView {
   private displayText: string
@@ -68,6 +80,17 @@ export default class MindmapView extends ItemView {
       headingStyles.classList.toggle('is-active', this.renderer.toggleHeadingStyles())
     })
     headingStyles.classList.add('is-active')
+    // Also per canvas, and left of the heading switch: how much of the note's
+    // plain text the canvas draws. Three modes, so the button cycles and its
+    // icon and tooltip name the mode it is in (`PROSE_MODES`).
+    let mode = this.renderer.proseMode()
+    const proseNodes = this.addAction(PROSE_ICONS[mode], strings.viewActions.proseNodes[mode], () => {
+      mode = this.renderer.cycleProseNodes()
+      setIcon(proseNodes, PROSE_ICONS[mode])
+      setTooltip(proseNodes, strings.viewActions.proseNodes[mode], { placement: 'bottom' })
+      proseNodes.classList.toggle('is-active', mode !== 'never')
+    })
+    proseNodes.classList.toggle('is-active', mode !== 'never')
     this.addAction('zoom-out', strings.viewActions.zoomOut, zoomOut)
     this.addAction('zoom-in', strings.viewActions.zoomIn, zoomIn)
 

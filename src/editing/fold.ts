@@ -14,7 +14,12 @@
 
 export interface FoldNode {
   children?: FoldNode[]
-  payload?: { fold?: unknown }
+  /**
+   * Only `fold` is read here. The rest of the payload (the source path that maps
+   * a rendered node back to the document, for instance) is passed through, so it
+   * has to stay expressible.
+   */
+  payload?: { fold?: unknown; [key: string]: unknown }
 }
 
 export type FoldLevelAction = 'foldLevel' | 'unfoldLevel' | 'unfoldAll' | 'toggleAll'
