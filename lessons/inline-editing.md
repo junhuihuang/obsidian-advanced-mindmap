@@ -185,3 +185,42 @@ made `setText` write a one-line block.
 
 **Don't** decide "multiline" from the text (it contains `\n` for a pasted newline too) or
 from the rendered node (markmap wraps text at `maxWidth`).
+
+## The editor may not grow past the visible canvas — and the node keeps that wrap
+
+**Symptom.** Typing a long sentence in a node grew the editor into one very wide line.
+Everything past the right edge of the pane — including the part being typed — was off
+screen, and it stayed that way after `Enter`.
+
+**Root cause.** The width came from `Rect.maxWidth` alone, i.e. markmap's `maxWidth`,
+which is unlimited unless the note/settings set it (`--markmap-max-width` falls back to
+`9999px`). The editor knew the node's wrap limit but nothing about how much screen it
+had, so a text wider than the pane produced a box wider than the pane.
+
+**Do**
+
+- Pass `bounds: () => container.getBoundingClientRect()` (`svg.parentElement` is the
+  canvas the user can actually see) and cap the box at
+  `bounds.right - EDITOR_VIEWPORT_MARGIN - rect.left` (24 px keeps the last glyph off
+  the pane edge). `clipped` = the text's own width,
+  `editorWidth(textWidth, rect.maxWidth)`, is wider than that space — so "does not fit"
+  is a property of the text, not of the box currently drawn.
+- Report the width to the handlers (`InlineInputWrap`) **only** when the text changed:
+  clicking into a node and out again must never reshape it.
+- `keepWrapWidth()` (`node-editor.ts`) stores it as the node's own width —
+  `setNodeWidth(key, width / zoomScale())`, the same content-pixel unit a dragged resize
+  uses — **after** the render, because the width key is a hash of the text and only
+  exists once the new text is rendered. Without that step the node snaps back to one
+  long line on `Enter`; a wrap the user saw while typing but not afterwards is worse
+  than never wrapping. It is a view preference, so resetting the width from the node
+  menu undoes it.
+- Screen → content pixels is `zoomScale()`. Measured (real Obsidian, zoom 2): editor
+  `267.5×403` screen → stored `134` → committed node `268×403.1`, the same wrap to the
+  pixel; its right edge stayed 24 px inside the pane (`785.1` of `809`). Same check with
+  CJK: `224.5×518` → node `224×518.3`.
+
+**Don't**
+
+- Cap the editor only: the box changes shape the moment editing ends.
+- Clamp the *global* `maxWidth` to the pane: node width is per node, never a global
+  (`rendering.md`), and per-pane wrapping would re-wrap every other node.

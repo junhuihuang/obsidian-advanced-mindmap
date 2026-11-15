@@ -516,6 +516,99 @@ describe('wrapping editor', () => {
   })
 })
 
+describe('wrapping at the visible canvas', () => {
+  // A node is only wrapped where markmap wraps it (`maxWidth`, which is
+  // unlimited unless the note says otherwise). Without a canvas cap the editor
+  // grew into one very wide line and everything after the pane's right edge -
+  // including the part being typed - was off screen.
+  const bounds = (right: number) => () => ({ left: 0, right })
+
+  function handlers(): InlineInputHandlers {
+    return { save: vi.fn(), commit: vi.fn(), addChild: vi.fn(), cancel: vi.fn() }
+  }
+
+  it('wraps a long text at the space that is actually visible', () => {
+    const input = openInlineInput('short', () => ({ left: 0, top: 0, width: 100 }), handlers(), {
+      bounds: bounds(500),
+    })
+
+    input.value = 'x'.repeat(100)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    // 1000px of text, 500px of canvas minus the margin: the box stops at the
+    // pane's edge, so the rest of the text wraps onto a second line.
+    expect(input.style.width).toBe('476px')
+  })
+
+  it('reports the wrap width so the committed node can keep it', () => {
+    const events = handlers()
+    const input = openInlineInput('short', () => ({ left: 0, top: 0, width: 100 }), events, {
+      bounds: bounds(500),
+    })
+
+    input.value = 'x'.repeat(100)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+
+    expect(events.commit).toHaveBeenCalledWith('x'.repeat(100), { width: 476 })
+  })
+
+  it('does not report a wrap for a text that fits', () => {
+    const events = handlers()
+    const input = openInlineInput('abc', () => ({ left: 100, top: 0, width: 30 }), events, {
+      bounds: bounds(500),
+    })
+
+    input.value = 'abcd'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+
+    expect(input.style.width).toBe('41px')
+    expect(events.commit).toHaveBeenCalledWith('abcd')
+  })
+
+  it('keeps a wrap width that is already narrower than the canvas', () => {
+    // The node has its own width (a dragged resize): markmap already wraps it
+    // there, so the canvas has nothing to say.
+    const events = handlers()
+    const input = openInlineInput('abc', () => ({ left: 0, top: 0, width: 30, maxWidth: 60 }), events, {
+      bounds: bounds(500),
+    })
+
+    input.value = 'x'.repeat(100)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+
+    expect(input.style.width).toBe('60px')
+    expect(events.commit).toHaveBeenCalledWith('x'.repeat(100))
+  })
+
+  it('leaves the node alone when the text did not change', () => {
+    // Clicking into a long node and out again must not reshape the node.
+    const events = handlers()
+    const long = 'x'.repeat(100)
+    const input = openInlineInput(long, () => ({ left: 0, top: 0, width: 100 }), events, {
+      bounds: bounds(500),
+    })
+
+    input.dispatchEvent(new FocusEvent('blur'))
+
+    expect(events.save).toHaveBeenCalledWith(long)
+  })
+
+  it('ignores a canvas that cannot be measured', () => {
+    const events = handlers()
+    const input = openInlineInput('abc', () => ({ left: 0, top: 0, width: 30 }), events, {
+      bounds: () => undefined,
+    })
+
+    input.value = 'x'.repeat(100)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    expect(input.style.width).toBe('1001px')
+  })
+})
+
 describe('position tracking', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

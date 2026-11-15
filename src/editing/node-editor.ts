@@ -9,7 +9,7 @@ import { foldCommandPlan, foldToLevelPlan, revealNextLevelPlan, type FoldLevelAc
 import { focusPaths, siblingPaths } from './focus'
 import { HELP_SECTIONS } from './help'
 import { FOLD_HINTS } from './fold-hints'
-import { nodeContentElement, nodeMaxWidth, nodeMetrics, openInlineInput } from './inline-input'
+import { nodeContentElement, nodeMaxWidth, nodeMetrics, openInlineInput, type InlineInputWrap } from './inline-input'
 import { findNodeInDirection, isDescendantPath, nearestPath, type NodePosition } from './navigation'
 import { getSourcePath } from './source-paths'
 import { collectSearchNodes, findMatches, isQueryEmpty, stepIndex } from './search'
@@ -2861,7 +2861,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   ) {
     if (text === undefined) return
 
-    const rename = (value: string) => void saveText(path, value)
+    const rename = (value: string, wrap?: InlineInputWrap) => void saveText(path, value, wrap)
     const cancel = () => {
       onCancel?.()
       selectOnly(path)
@@ -2903,11 +2903,24 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
         ? { save: rename, commit: rename, addChild: rename, cancel }
         : {
             save: rename,
-            commit: value => void saveAndSelect(path, value),
-            addChild: value => void saveThenAdd(path, value, 'addChild'),
+            commit: (value, wrap) => void saveAndSelect(path, value, wrap),
+            addChild: (value, wrap) => void saveThenAdd(path, value, 'addChild', wrap),
             cancel,
           },
-      { track: true, trackDuration, select, observe: svg, multiline: isMultilineNode(path) },
+      {
+        track: true,
+        trackDuration,
+        select,
+        observe: svg,
+        multiline: isMultilineNode(path),
+        // The editor may not run off the canvas. A node is only wrapped where
+        // markmap wraps it (`maxWidth`, unlimited in some notes), so a long
+        // sentence used to grow the editor into one wide line whose end - the
+        // part being typed - was past the right edge of the pane. The container
+        // is the box the user can actually see; the editor wraps there and the
+        // same width is stored for the node (see `keepWrapWidth`).
+        bounds: () => container?.getBoundingClientRect(),
+      },
     )
   }
 
@@ -2918,7 +2931,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     if (group) openTextEditor(group, primaryPath, undefined, 'end')
   }
 
-  async function saveText(path: number[], text: string) {
+  async function saveText(path: number[], text: string, wrap?: InlineInputWrap) {
     // Empty nodes are not allowed: clearing the text keeps the previous content
     // (delete the node explicitly with Backspace to remove it).
     if (text.trim() === '') {
@@ -2931,11 +2944,34 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     // + focus); the render and animation run asynchronously afterwards.
     selectOnly(path)
     await commit({ type: 'setText', path, text })
+    keepWrapWidth(path, wrap)
+  }
+
+  /**
+   * Keeps a committed node wrapped where the inline editor wrapped it.
+   *
+   * The editor only wraps earlier than the node does when the text would have
+   * run off the visible canvas (see `InlineInputOptions.bounds`). Without
+   * recording that width the node snaps back to one very long line the moment
+   * editing ends, so the text the user just typed is off screen again. The width
+   * is the existing per-node view preference: it lives in the plugin data (never
+   * in the note) and the node menu can reset it like a dragged width.
+   */
+  function keepWrapWidth(path: number[], wrap?: InlineInputWrap) {
+    if (!wrap || !setNodeWidth) return
+    // The key follows the node's text, so it has to be read after the render.
+    const group = findGroupByPath(path)
+    const key = group ? nodeWidthKey(group) : undefined
+    if (!key) return
+    // The editor reports on-screen pixels; the stored width is in content
+    // pixels, the same unit a dragged resize uses.
+    const width = clampNodeWidth(wrap.width / zoomScale())
+    if (setNodeWidth(key, width)) refreshNodeWidths()
   }
 
   /** Saves the text, then selects the node so the next Enter adds a sibling. */
-  async function saveAndSelect(path: number[], text: string) {
-    await saveText(path, text)
+  async function saveAndSelect(path: number[], text: string, wrap?: InlineInputWrap) {
+    await saveText(path, text, wrap)
     container?.focus()
   }
 
@@ -2990,7 +3026,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
   }
 
   /** Saves the edited text, then adds a child/sibling and edits it. */
-  function saveThenAdd(path: number[], text: string, type: 'addChild' | 'addSibling') {
+  function saveThenAdd(path: number[], text: string, type: 'addChild' | 'addSibling', wrap?: InlineInputWrap) {
     try {
       let markdown = getMarkdown()
       // Empty nodes are not allowed; an empty edit keeps the previous text.
@@ -3006,7 +3042,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
       void applyChange(next, [
         ...(text.trim() !== '' ? [{ type: 'setText' as const, path }] : []),
         { type: 'insert', path: newPath },
-      ]).catch(handleEditError)
+      ]).then(() => keepWrapWidth(path, wrap)).catch(handleEditError)
 
       editNewNode(anchor, newLine, newPath)
     } catch (error) {

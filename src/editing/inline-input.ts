@@ -51,13 +51,33 @@ export interface Rect {
   mask?: Element | null
 }
 
+/**
+ * Where the editor had to wrap the text instead of drawing it on one line.
+ *
+ * The only reason for this is the visible canvas (see
+ * `InlineInputOptions.bounds`): the node itself would happily stay on one line
+ * and run off screen, out of the user's view. A caller that keeps the node in
+ * sync with the editor turns this into the node's own width, so the committed
+ * node wraps exactly where the editor wrapped it instead of snapping back to
+ * one long line.
+ */
+export interface InlineInputWrap {
+  /** The width the text was wrapped at, in on-screen (CSS) pixels. */
+  width: number
+}
+
 export interface InlineInputHandlers {
-  /** Called when the input loses focus (save only). */
-  save: (text: string) => void
-  /** Called on Enter (save and select). */
-  commit: (text: string) => void
-  /** Called on Tab (save and add a child). */
-  addChild: (text: string) => void
+  /**
+   * Called when the input loses focus (save only).
+   *
+   * `wrap` is passed only when the text had to be wrapped because it did not fit
+   * the visible canvas - see `InlineInputWrap`.
+   */
+  save: (text: string, wrap?: InlineInputWrap) => void
+  /** Called on Enter (save and select). Takes `wrap` like `save`. */
+  commit: (text: string, wrap?: InlineInputWrap) => void
+  /** Called on Tab (save and add a child). Takes `wrap` like `save`. */
+  addChild: (text: string, wrap?: InlineInputWrap) => void
   /** Called on Escape. */
   cancel: () => void
 }
@@ -96,6 +116,18 @@ export interface InlineInputOptions {
    * block turns the diagram into a parse error.
    */
   multiline?: boolean
+  /**
+   * The visible box of the mindmap canvas, in on-screen pixels.
+   *
+   * A node is only wrapped where markmap wraps it: at `maxWidth`, which is
+   * unlimited unless the note/settings say otherwise. Typing a long sentence
+   * therefore grew the editor into one very wide line that ran off the canvas,
+   * and the part the user was typing was no longer on screen (the caret follows
+   * the text, the viewport does not). The editor may not grow past this box: it
+   * wraps the text at the space that is actually visible instead, and reports
+   * that width to the handlers so the committed node keeps the same wrap.
+   */
+  bounds?: () => { left: number; right: number } | null | undefined
 }
 
 /**
@@ -231,6 +263,13 @@ export function editorWidth(lineWidth: number, maxWidth?: number): number {
   return Math.max(capped, Math.min(MIN_EDITOR_WIDTH, hasLimit ? maxWidth : MIN_EDITOR_WIDTH))
 }
 
+/**
+ * Space, in on-screen pixels, kept between the editor and the canvas' right
+ * edge. A box that ends exactly on the border of the pane looks clipped, and the
+ * last glyph needs a little room before the scrollbar/pane edge.
+ */
+export const EDITOR_VIEWPORT_MARGIN = 24
+
 /** The scale factor markmap currently applies to a node via its SVG transform. */
 function nodeScale(group: Element): number {
   const ctm = (group as SVGGraphicsElement).getScreenCTM?.()
@@ -332,6 +371,19 @@ export function openInlineInput(
 
   // Whether the current rect is the node's own box (see `Rect.trustWidth`).
   let coversNode: boolean | undefined
+  // The width (on-screen px) the text had to be wrapped at because it did not
+  // fit the visible canvas (see `options.bounds`), or `undefined` when the
+  // canvas is wide enough. Reported to the handlers on close so the committed
+  // node keeps the wrap instead of snapping back to one long line.
+  let wrapWidth: number | undefined
+
+  /** The space between `left` and the visible canvas' right edge, if known. */
+  const visibleWidth = (left: number): number | undefined => {
+    const bounds = options.bounds?.()
+    if (!bounds) return undefined
+    const width = bounds.right - EDITOR_VIEWPORT_MARGIN - left
+    return width > MIN_EDITOR_WIDTH ? width : undefined
+  }
 
   const position = (fast?: boolean): Rect => {
     const rect = getRect()
@@ -368,7 +420,16 @@ export function openInlineInput(
     // behind the input. A rect that only marks where to start (a node that is
     // still being created) is trusted for the text width only.
     const textWidth = measurer.measure(input.value)
-    const wanted = editorWidth(textWidth, rect.maxWidth)
+    // Cap the box at the visible canvas as well, or a long text keeps growing to
+    // the right of the pane and the user cannot see what they type (the caret
+    // follows the text; the viewport does not). `natural` is the width the text
+    // asks for at the node's own wrap limit, so "wider than the canvas" is a
+    // property of the text, not of the box that is currently drawn.
+    const natural = editorWidth(textWidth, rect.maxWidth)
+    const available = visibleWidth(rect.left)
+    const clipped = available !== undefined && natural > available
+    wrapWidth = clipped ? available : undefined
+    const wanted = clipped ? editorWidth(textWidth, available) : natural
     const cover = trustWidth && !typed
     input.setCssStyles({
       width: `${cover
@@ -423,10 +484,21 @@ export function openInlineInput(
     ? input.value.replace(/\r\n?/g, '\n')
     : input.value.replace(/[\r\n]+/g, ' ')
 
+  /**
+   * Hands the text to a handler, with the wrap width only when there is one and
+   * the text really changed: opening a node and leaving it again (a click, a
+   * look) must not reshape the node.
+   */
+  const deliver = (handler: (text: string, wrap?: InlineInputWrap) => void, text: string) => {
+    const wrap = wrapWidth !== undefined && input.value !== value ? { width: wrapWidth } : undefined
+    if (wrap) handler(text, wrap)
+    else handler(text)
+  }
+
   const run = (action: EditingAction, text: string) => {
     if (action === 'cancel') handlers.cancel()
-    else if (action === 'addChild') handlers.addChild(text)
-    else handlers.commit(text)
+    else if (action === 'addChild') deliver(handlers.addChild, text)
+    else deliver(handlers.commit, text)
   }
 
   input.addEventListener('input', () => {
@@ -444,7 +516,7 @@ export function openInlineInput(
   })
 
   input.addEventListener('blur', () => {
-    if (finish()) handlers.save(readText())
+    if (finish()) deliver(handlers.save, readText())
   })
 
   return input
