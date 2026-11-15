@@ -23,6 +23,7 @@ vi.mock('./renderer-common', () => ({
     return {
       svg,
       markmap: { setData: mocks.setData, renderData: mocks.renderData, svg: { node: () => svg }, options: { color: () => '' }, fit: mocks.fit, rescale: mocks.rescale, destroy: mocks.destroy, state: mocks.state },
+      mermaid: { render: vi.fn(), whenIdle: () => Promise.resolve(), destroy: vi.fn() },
     }
   },
   getOptions: (settings: any) => ({

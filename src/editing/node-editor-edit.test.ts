@@ -139,3 +139,80 @@ describe('i to edit', () => {
     expect(input!.style.borderStyle).toBe('none')
   })
 })
+
+/**
+ * A note that is one fenced code block, with markmap's single node pointing at
+ * it. Editing that node is editing the whole block, not one markdown line.
+ */
+function setupBlock() {
+  document.body.innerHTML = ''
+  const container = document.createElement('div')
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  container.append(svg)
+  document.body.append(container)
+
+  const markdown = '```mermaid\ngraph TD\n  A-->B\n```\n'
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  group.setAttribute('class', 'markmap-node')
+  ;(group as unknown as { __data__: unknown }).__data__ = {
+    content: 'graph TD',
+    children: [],
+    payload: { advmmSourcePath: [0] },
+  }
+  const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+  foreignObject.setAttribute('class', 'markmap-foreign')
+  const outer = document.createElement('div')
+  const content = document.createElement('div')
+  content.textContent = 'graph TD'
+  outer.append(content)
+  foreignObject.append(outer)
+  group.append(foreignObject)
+  svg.append(group)
+
+  const written: string[] = []
+  attachNodeEditor({
+    svg: svg as unknown as SVGSVGElement,
+    getMarkdown: () => markdown,
+    setMarkdown: next => { written.push(next) },
+    getFoldRoot: () => ({ children: [] }),
+    applyFoldPlan: () => {},
+  })
+
+  const press = (key: string) => {
+    container.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+  }
+
+  return { press, written }
+}
+
+describe('editing a fenced code block', () => {
+  afterEach(() => { document.body.innerHTML = '' })
+
+  it('opens the editor with the whole fence body', () => {
+    const { press } = setupBlock()
+    press('ArrowDown')
+    press('i')
+
+    const input = document.querySelector('textarea.advmm-node-editor') as HTMLTextAreaElement | null
+    expect(input).not.toBeNull()
+    expect(input!.value).toBe('graph TD\n  A-->B')
+  })
+
+  it('writes the block back with its own lines instead of one flattened line', async () => {
+    // Double-click, click away: the editor used to flatten every newline to a
+    // space ("one node is one markdown line"), which rewrote a ```mermaid block
+    // as a single line — the diagram became a parse error and the note lost its
+    // formatting.
+    const { press, written } = setupBlock()
+    press('ArrowDown')
+    press('i')
+
+    const input = document.querySelector('textarea.advmm-node-editor') as HTMLTextAreaElement
+    input.value = 'graph TD\n  A-->B\n  B-->C'
+    input.dispatchEvent(new FocusEvent('blur'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(written).toHaveLength(1)
+    expect(written[0]).toContain('graph TD\n  A-->B\n  B-->C\n```')
+  })
+})

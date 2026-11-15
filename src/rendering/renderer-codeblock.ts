@@ -28,7 +28,11 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
 
   // createMarkmap should take the full markdown and render
   // transformMarkdown should be merged into this
-  const { markmap, svg } = createMarkmap({ parent: containerEl })
+  const { markmap, svg, mermaid } = createMarkmap({
+    parent: containerEl,
+    // A diagram inside the block resolves its links against the note it lives in.
+    getSourcePath: () => file.path,
+  })
 
   svgs.register(component, svg, file)
 
@@ -64,11 +68,16 @@ export function CodeBlockRenderer(codeBlock: CodeBlock) {
     destroyed = true
     renderQueue.destroy()
     editorHandle?.destroy()
+    mermaid.destroy()
     markmap.destroy()
     containerEl.parentElement?.classList.remove(cssClasses.markmapEmbed)
   })
 
-  void render().then(() => markmap.fit())
+  // Fit once the first render — including any diagram it draws — is on screen.
+  void render()
+    .then(() => mermaid.whenIdle())
+    .then(() => { if (!destroyed) void markmap.fit() })
+    .catch(() => undefined)
 
   Callbag.subscribe(renderCodeblocks$, render)
 

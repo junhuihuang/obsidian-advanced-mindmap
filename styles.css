@@ -45,6 +45,44 @@ body.advmm-hide-status-bar .status-bar { display: none }
     display: none;
 }
 
+
+/* Mermaid diagrams (`src/rendering/mermaid-nodes.ts`)
+
+   A ```` ```mermaid ```` block is drawn by Obsidian's own Markdown renderer, so
+   the node shows the same diagram the reading view does, in the current theme.
+   The wrapper keeps the fence beside the diagram: while Obsidian has not
+   answered yet (`pending`) nothing but the diagram is meant to be visible, and
+   when it cannot draw the block (`failed`, e.g. a syntax error) the source is
+   shown instead of an empty node. */
+.advmm-mermaid > .advmm-mermaid-source { display: none }
+
+.advmm-mermaid[data-mermaid-state='failed'] > .advmm-mermaid-source {
+    display: block;
+}
+
+/* The fence inside the diagram's container is Obsidian's: it is only hidden by
+   removing it from the DOM (`settle()`), never by CSS. Its Mermaid post
+   processor mounts a block only while the `pre` is "shown" (`isShown()` is
+   `offsetParent`), so a `display: none` fence makes it defer the mount to an
+   animation that may never fire — the node then keeps its source and no diagram.
+
+/* The diagram is drawn responsively (`max-width: 100%` of this container, in
+   an inline style), so markmap's own `maxWidth` setting is what caps it — the
+   same cap every other node of the canvas has. */
+.advmm-mermaid > .advmm-mermaid-diagram svg { display: block }
+
+/* Mermaid draws zoom/pan buttons over a diagram that does not fit. In a node
+   they are unreachable (the node's own click/drag wins) and a click on them
+   would zoom the diagram instead of selecting the node. */
+.advmm-mermaid .pele-zoom { display: none }
+
+/* markmap's global CSS sets `fill: currentColor` on every label `<svg>`, which
+   would override the diagram's own text colour (a presentation attribute).
+   Mermaid keeps its palette in `--_*` custom properties on that same `<svg>`. */
+.markmap-foreign .advmm-mermaid > .advmm-mermaid-diagram svg {
+    fill: var(--_fg, currentColor);
+}
+
 /* Node label backgrounds. `==highlighted==` text is rendered as `<mark>` and
    per-node `<!-- bgColor: … -->` labels as a styled `<span>`; both paint a
    bare rectangle behind the text. Round them with the same radius as the

@@ -59,7 +59,12 @@ const TABLE_ROW_RE = /^[ \t]*\|/
 const TABLE_DELIMITER_RE = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/
 const THEMATIC_BREAK_RE = /^[ \t]{0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/
 
-function isBlock(node: SourceNode): boolean {
+/**
+ * True for a node whose text is a whole block (a fenced code block or a table)
+ * rather than one markdown line. `setText` re-wraps such a text line by line
+ * (`formatBlock`), so its newlines are part of the node.
+ */
+export function isBlock(node: SourceNode): boolean {
   return node.kind === 'code' || node.kind === 'table'
 }
 

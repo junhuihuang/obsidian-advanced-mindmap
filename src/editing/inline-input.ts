@@ -88,6 +88,14 @@ export interface InlineInputOptions {
    * real node as soon as that node exists.
    */
   observe?: Element
+  /**
+   * The text is a whole block (a fenced code block or a table), so its newlines
+   * are its structure. Enter still commits and typing still cannot add a line,
+   * but the lines the block already has must survive the round trip: flattening
+   * them into spaces rewrites the block as one line, which for a ```` ```mermaid ````
+   * block turns the diagram into a parse error.
+   */
+  multiline?: boolean
 }
 
 /**
@@ -285,6 +293,7 @@ export function openInlineInput(
   handlers: InlineInputHandlers,
   options: InlineInputOptions = {},
 ): HTMLTextAreaElement {
+  const { multiline = false } = options
   // A `<textarea>`, not an `<input>`: markmap wraps a node's text at `maxWidth`,
   // and a single-line input cannot show that — it clips (or scrolls away) every
   // character that does not fit the node's box, so editing a sentence showed
@@ -408,8 +417,11 @@ export function openInlineInput(
 
   // One node is one markdown line: a newline can only come from a paste (Enter
   // is the commit key), and it must not break the node into two lines in the
-  // file.
-  const readText = () => input.value.replace(/[\r\n]+/g, ' ')
+  // file. A block node is the exception — its text *is* those lines (see
+  // `multiline`), so only the line endings are normalized.
+  const readText = () => multiline
+    ? input.value.replace(/\r\n?/g, '\n')
+    : input.value.replace(/[\r\n]+/g, ' ')
 
   const run = (action: EditingAction, text: string) => {
     if (action === 'cancel') handlers.cancel()

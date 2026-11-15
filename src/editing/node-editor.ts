@@ -13,7 +13,7 @@ import { nodeContentElement, nodeMaxWidth, nodeMetrics, openInlineInput } from '
 import { findNodeInDirection, isDescendantPath, nearestPath, type NodePosition } from './navigation'
 import { getSourcePath } from './source-paths'
 import { collectSearchNodes, findMatches, isQueryEmpty, stepIndex } from './search'
-import { applyEdit, flattenPaths, getNodeAtPath, moveEdits, moveNode, moveNodes, parseSource, pathAtLine, pathKey, pathRange, removeNodes as removeSourceNodes, rootChildTarget, samePath, type EditOperation, type SourceNode } from './source-tree'
+import { applyEdit, flattenPaths, getNodeAtPath, isBlock, moveEdits, moveNode, moveNodes, parseSource, pathAtLine, pathKey, pathRange, removeNodes as removeSourceNodes, rootChildTarget, samePath, type EditOperation, type SourceNode } from './source-tree'
 import { isDoubleTap, movedBeyondThreshold, tapAction, LONG_PRESS_MS, type TapPoint } from './touch'
 import { applyNodeWidths, clampNodeWidth, nodeLabel, nodeWidth, nodeWidthKey } from 'src/rendering/node-widths'
 import { applyHeadingLevels } from 'src/rendering/node-headings'
@@ -1561,6 +1561,22 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
     }
   }
 
+  /**
+   * True when the node at `path` is a block whose text is several lines long
+   * (a fenced code block or a table). Editing it must keep those newlines: the
+   * editor flattens them for a normal one-line node (see
+   * `InlineInputOptions.multiline`), which would rewrite the block as one line —
+   * a ```` ```mermaid ```` block then stops being a diagram, and any other
+   * block loses its formatting.
+   */
+  function isMultilineNode(path: number[]): boolean {
+    try {
+      return isBlock(getNodeAtPath(sourceRoots(), path))
+    } catch {
+      return false
+    }
+  }
+
   function selectOnly(path: number[] | null) {
     setSelection(path ? [path] : [])
   }
@@ -2891,7 +2907,7 @@ export function attachNodeEditor({ svg, getMarkdown, getSourceRoots, setMarkdown
             addChild: value => void saveThenAdd(path, value, 'addChild'),
             cancel,
           },
-      { track: true, trackDuration, select, observe: svg },
+      { track: true, trackDuration, select, observe: svg, multiline: isMultilineNode(path) },
     )
   }
 

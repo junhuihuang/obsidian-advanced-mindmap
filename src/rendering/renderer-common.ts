@@ -18,6 +18,7 @@ import { revealAll, revealOneLevel } from 'src/editing/fold'
 import { parseSource, type SourceNode } from 'src/editing/source-tree'
 import { tagSourcePaths } from 'src/editing/source-paths'
 import { dropEmptyWrappers, insertProseNodes } from './prose-nodes'
+import { createMermaidNodes, type MermaidNodes } from './mermaid-nodes'
 
 
 const styleEl = createEl('style', {
@@ -267,7 +268,18 @@ export function contentZoomAnchor(markmap: Markmap): ZoomAnchor | undefined {
 }
 
 
-export function createMarkmap({ parent }: { parent: ParentNode }): { svg: SVGSVGElement, markmap: Markmap } {
+export interface CreateMarkmapOptions {
+  parent: ParentNode
+  /** The note drawn in this canvas, for links inside a rendered diagram. */
+  getSourcePath?: () => string | undefined
+}
+
+export function createMarkmap({ parent, getSourcePath }: CreateMarkmapOptions): {
+  svg: SVGSVGElement
+  markmap: Markmap
+  /** Renders ```` ```mermaid ```` blocks as diagrams (see ./mermaid-nodes). */
+  mermaid: MermaidNodes
+} {
   const svg = createSvg('svg')
   const markmap = Markmap.create(svg, { embedGlobalCSS: false })
   // Tame Ctrl+wheel: d3-zoom's 10x ctrl boost is meant for trackpad pinch, but
@@ -285,7 +297,14 @@ export function createMarkmap({ parent }: { parent: ParentNode }): { svg: SVGSVG
   // without touching the note, the settings or the other mindmaps.
   svg.classList.add('advmm-heading-styles')
 
-  return { svg, markmap }
+  // A diagram is much bigger than the fence it replaces, so the node has to be
+  // measured again before markmap sizes its box to the content.
+  const mermaid = createMermaidNodes(svg, {
+    getSourcePath,
+    onRendered: () => void markmap.renderData(),
+  })
+
+  return { svg, markmap, mermaid }
 }
 
 class Stylesheet {

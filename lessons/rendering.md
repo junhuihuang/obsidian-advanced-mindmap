@@ -224,3 +224,59 @@ overlapping reads as "instant and jumpy", not "smooth".
 - Three places must stay in sync when adding a fold action: keymap, `FOLD_HINTS`, and
   translations (`Record<FoldAction, …>` fails to compile otherwise), plus a line in the
   `?` help panel and the README — `help.test.ts` enforces the hint list.
+
+## A Mermaid fence is handed to Obsidian's renderer, never parsed by us
+
+**Symptom that started this.** A note whose first section is a ```` ```mermaid ````
+block drew 20 lines of `mindmap` source as the node's text.
+
+**Do** (`src/rendering/mermaid-nodes.ts`)
+
+- Find `pre > code.language-mermaid` in `.markmap-foreign`, replace the `pre` with a
+  wrapper, and render the fence **again as a fence** into a child div with
+  `MarkdownRenderer.render(app, '```mermaid\n…\n```', canvas, sourcePath, component)`.
+  Obsidian's own mermaid post processor replaces that block with `div.mermaid`, so
+  theming, diagram types and error messages are the reading view's, not a second
+  implementation.
+- Replace the fence **before** awaiting the render: a `MutationObserver` on the `<svg>`
+  fires again (d3 appends the content), and an unmarked fence would be drawn twice.
+- markmap keys a node by its content hash and only writes `content` in the enter
+  selection, so an unchanged node keeps its diagram across `renderData()`. A node whose
+  text changed gets a new element and a new diagram — no cache to invalidate.
+- Detect "drawn" with `canvas.querySelector('.mermaid')` and keep waiting through a
+  timeout: Obsidian defers the mount with `onNodeInserted` when the block is not shown
+  (`isShown()` is `offsetParent`, which a `foreignObject` does provide), and Mermaid is
+  loaded lazily on the first diagram of a session.
+- The diagram is bigger than the fence: call `markmap.renderData()` once it arrives, and
+  have the caller `await whenIdle()` **before** its first `fit()` — otherwise the view is
+  framed for the fence's text box.
+- Keep a copy of the fence in the wrapper (`data-mermaid-state="failed"` shows it). A
+  syntax error would otherwise leave an empty box.
+
+**Never hide the fence with CSS while Obsidian is deciding.**
+
+Obsidian's post processor mounts a block only when the `pre` is *shown* — and
+`isShown()` is `!!offsetParent`. A `display: none` fence makes it defer the mount to
+`onNodeInserted` (an `animationstart` listener), which in a hidden leaf never fires:
+the node keeps its source and no diagram, and it looks like "Mermaid does not render in
+some notes". So the fence inside `.advmm-mermaid-diagram` is only ever removed **from
+the DOM**, and only once the diagram is there (`settle()`).
+
+When the mount *was* deferred, the fence Obsidian kept is the source on screen: keep it
+visible and drop our own copy (`MERMAID_SOURCE_CLASS`) instead of hiding theirs.
+
+**Don't**
+
+- Parse Mermaid ourselves (`loadMermaid()` + `mermaid.render`): Obsidian's config,
+  `--pele-*` palette vars, theme switches and per-type layout are not ours to duplicate.
+- Try to cap the diagram from CSS. The renderer writes `max-width: 100%` inline, so the
+  cap must be the container's `max-width`; markmap's own `maxWidth` setting (which caps
+  every node) is the honest answer.
+- Assert geometry in jsdom: `pele` measures with `getBoundingClientRect`. Check the node
+  box in a real browser (standalone Chrome page + the `pele.min.js`/`app.css` from
+  `/usr/lib/obsidian/obsidian.asar`, which `npx asar extract` unpacks).
+- Trust `state.rect`, `foreignObject` sizes or a stale `<g>` while the Obsidian window
+  produces no frames: `markmap.renderData()` awaits `requestAnimationFrame`, and an
+  Electron/Obsidian window behind another one throttles it. The node then sits at
+  `0×0`, the exit transition never removes a removed node, and it all looks like a
+  layout bug. Force a frame (`dev:screenshot` over the CLI) before measuring.

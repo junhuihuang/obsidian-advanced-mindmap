@@ -70,6 +70,29 @@ export function setTooltip(el: HTMLElement, tooltip: string, _options?: unknown)
 
 export function getLanguage(): string { return 'en' }
 
+/**
+ * Lifecycle container for things rendered into a node (the real class also has
+ * `addChild`/`register`; the code under test only loads and unloads it).
+ */
+export class Component {
+  loaded = false
+  load(): this { this.loaded = true; return this }
+  unload(): void { this.loaded = false }
+}
+
+/**
+ * Renders Markdown into an element. The real class also runs Obsidian's post
+ * processors (which is where a Mermaid block becomes a diagram), so tests
+ * replace the static `render` with something that appends the expected output.
+ */
+export class MarkdownRenderer {
+  static render(
+    _app: unknown, _markdown: string, _el: HTMLElement, _sourcePath: string, _component: Component,
+  ): Promise<void> {
+    return Promise.resolve()
+  }
+}
+
 export function getFrontMatterInfo(content: string): {
   exists: boolean
   frontmatter: string

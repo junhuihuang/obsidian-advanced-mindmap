@@ -161,3 +161,27 @@ async chain. `Tab` had no such gap: `editNewNode` calls `selectOnly(path)` +
 **Do** highlight first, then submit: `selectOnly(path)` **before** `await commit(...)`.
 Async work (render, disk) belongs in the background and must not gate immediate visual
 feedback.
+
+## Only a one-line node may flatten its text — a block keeps its newlines
+
+**Symptom.** Double-clicking a node whose text is a ```` ```mermaid ```` block, then
+clicking anywhere else, rewrote the whole diagram as a single line (`mindmap root((GR00T
+2)) World-Action Model …`), turned it into a parse error, and lost 35 lines of the note.
+The same happened to any multi-line code block or table.
+
+**Root cause.** `readText()` flattened every newline to a space, which is right for a
+list item or a heading ("one node is one markdown line", Enter commits, only a paste can
+introduce `\n`) — but a `code`/`table` node's `text` *is* the whole block: `parseSource`
+joins its lines with `\n` and `formatBlock` re-wraps the text line by line. Flattening it
+made `setText` write a one-line block.
+
+**Do**
+
+- Pass `InlineInputOptions.multiline` from the caller: `isBlock(getNodeAtPath(roots,
+  path))` (`source-tree.ts`). Then `readText` only normalizes `\r\n` → `\n`.
+- Keep Enter as the commit key: typing still cannot add a line, a pasted newline still
+  arrives in the value. Only the lines the block already has are preserved.
+- Guard the lookup: a node that is still being created has no source node yet → `false`.
+
+**Don't** decide "multiline" from the text (it contains `\n` for a pasted newline too) or
+from the rendered node (markmap wraps text at `maxWidth`).

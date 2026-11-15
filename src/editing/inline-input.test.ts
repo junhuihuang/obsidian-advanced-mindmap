@@ -492,6 +492,28 @@ describe('wrapping editor', () => {
 
     expect(handlers.commit).toHaveBeenCalledWith('one two')
   })
+
+  it('gives a block node its own lines back', () => {
+    // A code block's text *is* its lines: flattening them (as a one-line node
+    // must) rewrites the fence as a single line and breaks the block, e.g. a
+    // Mermaid diagram becomes a parse error.
+    const handlers: InlineInputHandlers = { save: vi.fn(), commit: vi.fn(), addChild: vi.fn(), cancel: vi.fn() }
+    const input = openInlineInput('graph TD\r\n  A-->B', () => RECT, handlers, { multiline: true })
+    input.value = 'graph TD\r\n  A-->B\n  B-->C'
+
+    input.dispatchEvent(new FocusEvent('blur'))
+
+    expect(handlers.save).toHaveBeenCalledWith('graph TD\n  A-->B\n  B-->C')
+  })
+
+  it('commits a block node with its lines on Enter', () => {
+    const handlers: InlineInputHandlers = { save: vi.fn(), commit: vi.fn(), addChild: vi.fn(), cancel: vi.fn() }
+    const input = openInlineInput('graph TD\n  A-->B', () => RECT, handlers, { multiline: true })
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+
+    expect(handlers.commit).toHaveBeenCalledWith('graph TD\n  A-->B')
+  })
 })
 
 describe('position tracking', () => {

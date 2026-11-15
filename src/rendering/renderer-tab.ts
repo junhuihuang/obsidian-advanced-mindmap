@@ -22,7 +22,11 @@ import { latestRenderQueue } from './render-queue'
 export type TabRenderer = ReturnType<typeof TabRenderer>
 export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: WorkspaceLeaf) {
   const contentEl = containerEl.children[1]
-  const { svg, markmap } = createMarkmap({ parent: contentEl })
+  let currentFile: TFile | undefined
+  const { svg, markmap, mermaid } = createMarkmap({
+    parent: contentEl,
+    getSourcePath: () => currentFile?.path,
+  })
 
   const state: {
     hasRendered: boolean
@@ -35,7 +39,6 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     markdown: ''
   }
 
-  let currentFile: TFile | undefined
   const renderQueue = latestRenderQueue()
   let writeQueue: Promise<void> = Promise.resolve()
   let destroyed = false
@@ -123,9 +126,14 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     state.hasRendered = true
     await render(file)
     if (destroyed) return
-    void markmap.fit()
     // Focus the editor so keyboard navigation works without clicking first.
     editor.focus()
+    // A diagram is drawn after the node content arrives and is much bigger than
+    // the fence it replaces, so fitting before it would frame the fence's text
+    // box instead of the canvas the user ends up with.
+    await mermaid.whenIdle()
+    if (destroyed) return
+    void markmap.fit()
   }
 
   async function render(file: TFile, content?: string): Promise<void> {
@@ -138,6 +146,7 @@ export function TabRenderer(containerEl: MindmapView['containerEl'], leaf: Works
     renderQueue.destroy()
     markdownSplit.destroy()
     editor.destroy()
+    mermaid.destroy()
     markmap.destroy()
     svgs.delete(svg)
   }
